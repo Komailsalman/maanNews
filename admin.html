@@ -1,0 +1,3246 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>maannews — لوحة الإدارة</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --green:#1d7f64;--green-2:#0d4f40;--gold:#c5902f;
+  --coral:#ff6b55;--ink:#111827;--muted:#6b7280;
+  --soft:#9ca3af;--paper:#f2f2f7;--white:#fff;
+  --sidebar:240px;--radius:14px;
+  font-size:16px;
+}
+body{font-family:'IBM Plex Sans Arabic','IBM Plex Sans',sans-serif;background:var(--paper);color:var(--ink);min-height:100vh;display:flex;font-size:15px;}
+
+/* ===== LOGIN ===== */
+#loginPage{display:flex;align-items:center;justify-content:center;min-height:100vh;width:100%;background:linear-gradient(135deg,#0d1f17,#0a1a23)}
+.login-box{background:#fff;border-radius:24px;padding:40px;width:min(90vw,400px);box-shadow:0 40px 80px rgba(0,0,0,.3)}
+.login-box .logo{display:flex;align-items:center;gap:12px;margin-bottom:28px;justify-content:center}
+.login-box h1{font-size:28px;font-weight:900;color:var(--green);letter-spacing:-1px}
+.login-box p{color:var(--muted);font-size:13px;text-align:center;margin-bottom:28px}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:13px;font-weight:700;color:var(--muted);margin-bottom:6px}
+.field input{width:100%;height:48px;border:1.5px solid #e5e7eb;border-radius:12px;padding:0 16px;font-size:15px;outline:none;transition:border .2s;font-family:inherit}
+.field input:focus{border-color:var(--green)}
+.btn-primary{width:100%;height:52px;border-radius:14px;background:var(--green);color:#fff;font-size:16px;font-weight:800;border:0;cursor:pointer;transition:background .2s;font-family:inherit}
+.btn-primary:hover{background:var(--green-2)}
+#loginError{color:var(--coral);font-size:12px;text-align:center;margin-top:12px;display:none}
+
+/* ===== LAYOUT ===== */
+#app{display:none;width:100%;min-height:100vh}
+
+/* --- Sidebar (desktop) --- */
+.sidebar{width:var(--sidebar);background:#0b1d14;position:fixed;top:0;right:0;bottom:0;display:flex;flex-direction:column;z-index:100;font-family:'IBM Plex Sans Arabic','Reem Kufi',sans-serif;border-left:1px solid rgba(255,255,255,.06)}
+
+.sidebar-logo{padding:20px 16px 16px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:10px}
+.sidebar-logo img{height:38px;width:auto;object-fit:contain;filter:brightness(0) invert(1)}
+.sidebar-logo-text{display:flex;flex-direction:column}
+.sidebar-logo-text span:first-child{font-size:16px;font-weight:700;color:#fff;letter-spacing:-.3px;font-family:'Reem Kufi',sans-serif}
+.sidebar-logo-text span:last-child{font-size:10px;color:rgba(255,255,255,.5);margin-top:1px}
+
+/* nav scroll area */
+.sidebar nav{flex:1;padding:12px 10px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;scrollbar-width:none}
+.sidebar nav::-webkit-scrollbar{display:none}
+
+/* section labels */
+.nav-section-label{font-size:9px;font-weight:700;color:rgba(255,255,255,.35);padding:10px 14px 4px;letter-spacing:1.5px;text-transform:uppercase;font-family:'IBM Plex Sans Arabic',sans-serif}
+
+/* nav items */
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;color:rgba(255,255,255,.75);font-size:13.5px;font-weight:600;cursor:pointer;transition:all .18s;border:0;background:transparent;width:100%;text-align:right;position:relative;font-family:'IBM Plex Sans Arabic',sans-serif}
+.nav-item:hover{background:rgba(255,255,255,.07);color:#fff}
+.nav-item.active{background:rgba(29,127,100,.25);color:#6ee7b7}
+.nav-item.active::before{content:'';position:absolute;right:0;top:50%;transform:translateY(-50%);width:3px;height:60%;background:#6ee7b7;border-radius:0 3px 3px 0}
+.nav-item svg{flex-shrink:0;opacity:.8;transition:opacity .18s}
+.nav-item:hover svg,.nav-item.active svg{opacity:1}
+
+/* accordion group */
+.nav-accordion-btn{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;color:rgba(255,255,255,.75);font-size:13.5px;font-weight:600;cursor:pointer;transition:all .18s;border:0;background:transparent;width:100%;text-align:right;font-family:'IBM Plex Sans Arabic',sans-serif}
+.nav-accordion-btn:hover{background:rgba(255,255,255,.07);color:#fff}
+.nav-accordion-btn.open{color:#fff;background:rgba(255,255,255,.05)}
+.nav-accordion-arrow{margin-right:auto;width:14px;height:14px;opacity:.4;transition:transform .25s}
+.nav-accordion-btn.open .nav-accordion-arrow{transform:rotate(90deg);opacity:.7}
+.nav-accordion-body{overflow:hidden;max-height:0;transition:max-height .3s ease}
+.nav-accordion-body.open{max-height:300px}
+.nav-item.nav-sub{padding:9px 14px 9px 14px;font-size:13px;border-radius:8px;padding-right:32px}
+
+/* divider */
+.nav-divider{height:1px;background:rgba(255,255,255,.07);margin:8px 10px}
+
+/* user card at bottom */
+.sidebar-user{padding:12px 14px;border-top:1px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:10px}
+.sidebar-user-avatar{width:34px;height:34px;border-radius:50%;background:rgba(29,127,100,.4);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#4ade80;flex-shrink:0}
+.sidebar-user-info{flex:1;min-width:0}
+.sidebar-user-name{font-size:12px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:'Reem Kufi',sans-serif}
+.sidebar-user-role{font-size:10px;color:rgba(255,255,255,.5);margin-top:1px;font-family:'IBM Plex Sans Arabic',sans-serif}
+.sidebar-user-actions{display:flex;flex-direction:column;gap:4px}
+.sidebar-icon-btn{width:28px;height:28px;border-radius:7px;background:rgba(255,255,255,.06);border:0;color:rgba(255,255,255,.4);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .18s}
+.sidebar-icon-btn:hover{background:rgba(255,100,85,.15);color:var(--coral)}
+
+.main{position:fixed;top:0;right:var(--sidebar);left:0;bottom:0;overflow-y:auto;padding:28px;box-sizing:border-box}
+.page{display:none}
+.page.active{display:block}
+
+/* --- Top bar (mobile only) --- */
+.topbar{display:none;align-items:center;justify-content:space-between;padding:14px 16px;background:linear-gradient(135deg,#0d1f17,#0a1a23);position:sticky;top:0;z-index:90;font-family:'IBM Plex Sans Arabic','IBM Plex Sans',sans-serif}
+.topbar-title{font-size:18px;font-weight:700;color:#fff;font-family:'IBM Plex Sans','IBM Plex Sans Arabic',sans-serif}
+.topbar-menu-btn{background:transparent;border:0;color:#fff;cursor:pointer;padding:4px}
+
+/* --- Drawer (mobile sidebar) --- */
+.drawer-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:150;backdrop-filter:blur(2px)}
+.drawer-overlay.open{display:block}
+.drawer{position:fixed;top:0;right:-100%;width:min(280px,80vw);height:100%;background:#0b1d14;z-index:160;display:flex;flex-direction:column;transition:right .3s ease;font-family:'IBM Plex Sans Arabic','Reem Kufi',sans-serif;border-left:1px solid rgba(255,255,255,.06)}
+.drawer *{font-family:'IBM Plex Sans Arabic','IBM Plex Sans',sans-serif}
+.drawer.open{right:0}
+.drawer-close{position:absolute;top:14px;left:14px;background:rgba(255,255,255,.08);border:0;color:rgba(255,255,255,.6);border-radius:8px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;transition:all .18s}
+.drawer-close:hover{background:rgba(255,100,85,.15);color:var(--coral)}
+
+/* --- Bottom nav (mobile) --- */
+.bottom-nav{display:none;position:fixed;bottom:0;right:0;left:0;background:linear-gradient(180deg,#0d1f17,#0a1a23);border-top:1px solid rgba(255,255,255,.08);z-index:100;padding:8px 0 max(8px,env(safe-area-inset-bottom));font-family:'IBM Plex Sans Arabic','IBM Plex Sans',sans-serif}
+.bottom-nav-items{display:flex;justify-content:space-around}
+.bnav-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 10px;border:0;background:transparent;color:rgba(255,255,255,.45);cursor:pointer;font-size:11px;font-weight:600;font-family:'IBM Plex Sans Arabic',sans-serif;min-width:56px}
+.bnav-item.active{color:var(--green)}
+.bnav-item svg{flex-shrink:0}
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:768px){
+  :root{--sidebar:0px}
+  .sidebar{display:none !important}
+  .topbar{display:flex}
+  .bottom-nav{display:block}
+  .main{position:fixed;top:56px;right:0 !important;left:0;bottom:60px;overflow-y:auto;padding:16px;box-sizing:border-box}
+  .stats{grid-template-columns:repeat(2,1fr);gap:12px}
+  .stat-card{padding:16px}
+  .stat-card .num{font-size:28px}
+  .stat-card .lbl{font-size:13px}
+  .form-grid .col-2{grid-template-columns:1fr}
+  .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .table-wrap table{min-width:520px}
+  .page-header h2{font-size:22px}
+  .modal{width:100vw;max-height:95vh;padding:0;border-radius:20px 20px 0 0}
+  .modal-inner{padding:20px;padding-bottom:0}
+  .modal-overlay{align-items:flex-end}
+  .modal-footer{flex-direction:column-reverse;gap:8px}
+  .btn-cancel,.btn-save{width:100%;text-align:center;justify-content:center}
+  .action-btns{flex-wrap:wrap}
+}
+
+/* ===== HEADER ===== */
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.page-header h2{font-size:26px;font-weight:900}
+.btn-add{height:46px;padding:0 22px;border-radius:12px;background:var(--green);color:#fff;font-size:14px;font-weight:800;border:0;cursor:pointer;display:flex;align-items:center;gap:8px;transition:background .2s;font-family:inherit}
+.btn-add:hover{background:var(--green-2)}
+
+/* ===== STATS ===== */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px}
+.stat-card{background:#fff;border-radius:var(--radius);padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.stat-card .num{font-size:36px;font-weight:900;color:var(--green)}
+.stat-card .lbl{font-size:13px;color:var(--muted);font-weight:700;margin-top:4px}
+
+/* ===== TABLE ===== */
+.table-wrap{background:#fff;border-radius:var(--radius);box-shadow:0 2px 8px rgba(0,0,0,.05);overflow:hidden}
+.table-wrap table{width:100%;border-collapse:collapse}
+.table-wrap th{background:#f8fafc;padding:14px 18px;text-align:right;font-size:13px;font-weight:700;color:var(--muted);border-bottom:1px solid #f1f5f9}
+.table-wrap td{padding:16px 18px;font-size:14px;border-bottom:1px solid #f8fafc;vertical-align:middle}
+.table-wrap tr:last-child td{border-bottom:0}
+.table-wrap tr:hover td{background:#fafbfc}
+.badge{display:inline-flex;align-items:center;height:24px;padding:0 12px;border-radius:999px;font-size:12px;font-weight:800}
+.badge.published{background:#dcfce7;color:#15803d}
+.badge.draft{background:#f1f5f9;color:var(--muted)}
+.badge.breaking{background:#fee2e2;color:#dc2626}
+.thumb-sm{width:44px;height:36px;border-radius:8px;object-fit:cover;background:#f1f5f9}
+.action-btns{display:flex;gap:6px}
+.btn-edit{padding:8px 16px;border-radius:8px;background:#f0fdf4;color:var(--green);font-size:13px;font-weight:700;border:0;cursor:pointer;font-family:inherit}
+.btn-edit:hover{background:#dcfce7}
+.btn-del{padding:8px 16px;border-radius:8px;background:#fff1f2;color:var(--coral);font-size:13px;font-weight:700;border:0;cursor:pointer;font-family:inherit}
+.btn-del:hover{background:#ffe4e6}
+.btn-pub{padding:8px 16px;border-radius:8px;background:#eff6ff;color:#2563eb;font-size:13px;font-weight:700;border:0;cursor:pointer;font-family:inherit}
+.btn-pub:hover{background:#dbeafe}
+
+/* ===== MODAL ===== */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal-overlay.open{display:flex}
+.modal{background:#fff;border-radius:20px;width:min(90vw,600px);max-height:90vh;overflow:hidden;padding:0;box-shadow:0 40px 80px rgba(0,0,0,.3);display:flex;flex-direction:column}
+.modal-inner{flex:1;overflow-y:auto;padding:28px;padding-bottom:0}
+.modal h3{font-size:20px;font-weight:900;margin-bottom:20px}
+.form-grid{display:grid;gap:14px}
+.form-grid .field{margin:0}
+.form-grid .col-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.field textarea{width:100%;min-height:110px;border:1.5px solid #e5e7eb;border-radius:12px;padding:12px 16px;font-size:15px;font-family:inherit;outline:none;resize:vertical;transition:border .2s}
+.field textarea:focus{border-color:var(--green)}
+.field select{width:100%;height:48px;border:1.5px solid #e5e7eb;border-radius:12px;padding:0 16px;font-size:15px;outline:none;background:#fff;transition:border .2s;font-family:inherit}
+.field select:focus{border-color:var(--green)}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;padding:16px 28px;border-top:1px solid #f1f5f9;background:#fff;flex-shrink:0}
+.btn-cancel{padding:12px 22px;border-radius:10px;background:#f1f5f9;color:var(--muted);font-size:14px;font-weight:700;border:0;cursor:pointer;font-family:inherit}
+.btn-save{padding:12px 26px;border-radius:10px;background:var(--green);color:#fff;font-size:14px;font-weight:800;border:0;cursor:pointer;font-family:inherit}
+.btn-save:hover{background:var(--green-2)}
+
+/* ===== EMPTY ===== */
+.empty{text-align:center;padding:60px 20px;color:var(--soft)}
+.empty svg{margin:0 auto 12px;opacity:.4}
+.empty p{font-size:14px}
+
+/* ===== IMAGE UPLOAD TABS ===== */
+.img-tabs{display:flex;gap:0;border:1.5px solid #e5e7eb;border-radius:12px;overflow:hidden;margin-bottom:10px}
+.img-tab{flex:1;padding:9px;font-size:12px;font-weight:700;border:0;background:#f8fafc;color:var(--muted);cursor:pointer;transition:all .2s}
+.img-tab.active{background:var(--green);color:#fff}
+.img-panel{display:none}
+.img-panel.active{display:block}
+.img-upload{border:2px dashed #e5e7eb;border-radius:12px;padding:20px;text-align:center;cursor:pointer;transition:border .2s}
+.img-upload:hover{border-color:var(--green)}
+.img-upload input{display:none}
+.img-upload p{font-size:12px;color:var(--muted);margin-top:6px}
+.img-preview{width:100%;height:120px;object-fit:cover;border-radius:10px;margin-top:8px;display:none}
+
+.toggle{display:flex;align-items:center;gap:10px;cursor:pointer}
+.toggle input{display:none}
+.toggle-track{width:44px;height:26px;border-radius:999px;background:#d1d5db;position:relative;transition:background .2s}
+.toggle input:checked + .toggle-track{background:var(--green)}
+.toggle-thumb{position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.2);transition:transform .2s}
+.toggle input:checked + .toggle-track .toggle-thumb{transform:translateX(-18px)}
+.toggle-label{font-size:13px;font-weight:700}
+
+/* ===== BADGE PICKER ===== */
+.badge-picker{display:flex;gap:8px;flex-wrap:wrap}
+.badge-pick{padding:7px 16px;border-radius:999px;font-size:12px;font-weight:800;border:2px solid transparent;cursor:pointer;transition:all .2s;background:#f1f5f9;color:var(--muted)}
+.badge-pick:hover{filter:brightness(.95)}
+.badge-pick.sel-none.active{background:#e5e7eb;color:#374151;border-color:#9ca3af}
+.badge-pick.sel-urgent.active{background:#fee2e2;color:#dc2626;border-color:#dc2626}
+.badge-pick.sel-new.active{background:#dcfce7;color:#15803d;border-color:#15803d}
+.badge-pick.sel-important.active{background:#fef9c3;color:#a16207;border-color:#ca8a04}
+.badge-pick.sel-exclusive.active{background:#ede9fe;color:#7c3aed;border-color:#7c3aed}
+
+.loading{text-align:center;padding:40px;color:var(--muted)}
+.nav-group{margin:4px 0}
+.nav-group-label{font-size:10px;font-weight:700;color:rgba(255,255,255,.3);padding:8px 14px 4px;letter-spacing:.5px;text-transform:uppercase}
+.nav-item.nav-sub{padding:10px 16px 10px 22px;font-size:13px}
+
+/* ===== CALENDAR ===== */
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-day-header{text-align:center;font-size:11px;font-weight:700;color:var(--muted);padding:8px 0}
+.cal-day{min-height:80px;background:#fff;border-radius:10px;padding:8px;cursor:pointer;border:1.5px solid transparent;transition:all .2s;position:relative}
+.cal-day:hover{border-color:var(--green)}
+.cal-day.today{border-color:var(--green);background:#f0fdf4}
+.cal-day.other-month{background:#f8f9fa;opacity:.5}
+.cal-day .day-num{font-size:13px;font-weight:700;color:var(--ink)}
+.cal-day .day-events{margin-top:4px;display:flex;flex-direction:column;gap:2px}
+.cal-event{font-size:10px;background:var(--green);color:#fff;border-radius:4px;padding:2px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.week-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+.week-col{background:#fff;border-radius:12px;padding:10px;min-height:200px}
+.week-col.today{border:1.5px solid var(--green)}
+.week-col-header{font-size:12px;font-weight:700;text-align:center;padding:8px 0;border-bottom:1.5px solid #f1f5f9;margin-bottom:8px}
+.week-event{background:#f0fdf4;border-right:3px solid var(--green);padding:6px 8px;border-radius:6px;margin-bottom:6px;font-size:12px}
+.cal-view-btn{padding:8px 14px;border:0;background:#f8fafc;font-size:12px;font-weight:700;cursor:pointer;font-family:'IBM Plex Sans Arabic',sans-serif;color:var(--muted);transition:all .2s}
+.cal-view-btn.active{background:var(--green) !important;color:#fff !important}
+.progress-bar{height:6px;background:#e5e7eb;border-radius:99px;overflow:hidden;margin-top:4px}
+.progress-fill{height:100%;background:var(--green);border-radius:99px;transition:width .5s}
+@media(max-width:768px){
+  .cal-grid{gap:2px}
+  .cal-day{min-height:50px;padding:4px}
+  .week-grid{grid-template-columns:1fr}
+  .stats-2col{grid-template-columns:1fr !important}
+}
+
+/* ===== PUBLISH PICKER ===== */
+.publish-picker{display:flex;gap:0;border:1.5px solid #e5e7eb;border-radius:12px;overflow:hidden}
+.pub-opt{flex:1;padding:12px 8px;font-size:13px;font-weight:800;border:0;background:#f8fafc;color:var(--muted);cursor:pointer;transition:all .2s;font-family:'IBM Plex Sans Arabic',sans-serif}
+.pub-opt:not(:last-child){border-left:1px solid #e5e7eb}
+.pub-opt.active{background:var(--green);color:#fff}
+.pub-scheduled-wrap{margin-top:10px;display:none}
+.pub-scheduled-wrap.show{display:block}
+.pub-scheduled-wrap input{width:100%;height:44px;border:1.5px solid #e5e7eb;border-radius:12px;padding:0 14px;font-size:14px;outline:none;font-family:'IBM Plex Sans Arabic',sans-serif}
+.pub-scheduled-wrap input:focus{border-color:var(--green)}
+
+@media(max-width:768px){
+  .table-wrap table thead{display:none}
+  .table-wrap table tbody tr{display:block;background:#fff;border-radius:12px;margin-bottom:12px;padding:14px;box-shadow:0 2px 8px rgba(0,0,0,.06);border:0}
+  .table-wrap table tbody td{display:flex;justify-content:space-between;align-items:center;padding:9px 0;font-size:14px;border:0;border-bottom:1px solid #f3f4f6;gap:8px}
+  .table-wrap table tbody td:last-child{border-bottom:0}
+  .table-wrap table tbody td::before{content:attr(data-label);font-size:12px;font-weight:700;color:var(--muted);white-space:nowrap;flex-shrink:0}
+  .table-wrap table tbody td > *{text-align:left}
+  .table-wrap table{min-width:unset;width:100%}
+  .table-wrap{background:transparent;box-shadow:none;overflow:visible}
+  .action-btns{flex-wrap:wrap;gap:6px;justify-content:flex-start}
+  .thumb-sm{width:36px;height:30px}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginPage">
+  <div class="login-box">
+    <div class="logo"><img src="https://vjkqtcggjkxuskmavolc.supabase.co/storage/v1/object/public/news-images/logo.png" style="height:72px;width:auto;object-fit:contain;display:block;margin:0 auto 16px"></div>
+    <div class="field">
+      <label>البريد الإلكتروني</label>
+      <input type="email" id="loginEmail" placeholder="admin@example.com">
+    </div>
+    <div class="field">
+      <label>كلمة المرور</label>
+      <input type="password" id="loginPassword" placeholder="••••••••">
+    </div>
+    <button class="btn-primary" onclick="login()">دخول</button>
+    <div id="loginError">بيانات غير صحيحة، حاول مرة ثانية</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+
+  <!-- Top bar (mobile) -->
+  <div class="topbar">
+    <button class="topbar-menu-btn" onclick="openDrawer()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <img src="https://vjkqtcggjkxuskmavolc.supabase.co/storage/v1/object/public/news-images/logo.png" style="height:34px;width:auto;object-fit:contain;display:block;filter:brightness(0) invert(1)">
+  </div>
+
+  <!-- Drawer overlay -->
+  <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+
+  <!-- Drawer (mobile nav) -->
+  <div class="drawer" id="drawer">
+    <button class="drawer-close" onclick="closeDrawer()">&#x2715;</button>
+    <div class="sidebar-logo" style="margin-top:44px">
+      <img src="https://vjkqtcggjkxuskmavolc.supabase.co/storage/v1/object/public/news-images/logo.png">
+      <div class="sidebar-logo-text">
+        <span>معن نيوز</span>
+        <span>لوحة الإدارة</span>
+      </div>
+    </div>
+    <nav style="flex:1;padding:12px 10px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;scrollbar-width:none">
+      <button class="nav-item" onclick="showPage('dashboard');closeDrawer()"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/></svg>الرئيسية</button>
+      <div class="nav-section-label">المحتوى</div>
+      <button class="nav-item" onclick="showPage('news');closeDrawer()"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M7 8h10M7 12h10M7 16h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>الأخبار</button>
+      <button class="nav-item" onclick="showPage('obituaries');closeDrawer()"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>الوفيات</button>
+      <button class="nav-item" onclick="showPage('events');closeDrawer()"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M8 3v4M16 3v4M3 9h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>المناسبات</button>
+      <button class="nav-item" onclick="showPage('services');closeDrawer()"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.7.6 2.5a2 2 0 0 1-.4 2.1L8 9.6a16 16 0 0 0 6.4 6.4l1.3-1.3a2 2 0 0 1 2.1-.4c.8.3 1.6.5 2.5.6a2 2 0 0 1 1.7 2Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>الخدمات</button>
+      <button class="nav-item" data-page="ads" onclick="showPage('ads');closeDrawer()"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><rect x="2" y="5" width="20" height="14" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M8 12h8M8 16h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="5.5" cy="12" r="1.5" fill="currentColor"/></svg>الإعلانات</button>
+      <div class="nav-section-label">المجالس الحسينية</div>
+      <button class="nav-item nav-sub" onclick="showPage('centers');closeDrawer()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 2L3 9v11h18V9l-9-7Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 22V12h6v10" stroke="currentColor" stroke-width="1.8"/></svg>المجالس</button>
+      <button class="nav-item nav-sub" onclick="showPage('khateebs');closeDrawer()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.8"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>الخطباء</button>
+      <button class="nav-item nav-sub" onclick="showPage('majalis');closeDrawer()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M8 3v4M16 3v4M3 9h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>المآتم</button>
+      <button class="nav-item nav-sub" data-page="calendar" onclick="showPage('calendar');closeDrawer()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M8 2v4M16 2v4M3 10h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>التقويم</button>
+      <button class="nav-item nav-sub" data-page="majalis-stats" onclick="showPage('majalis-stats');closeDrawer()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M3 20h18M5 20V10M9 20V4M13 20V14M17 20V8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>الإحصائيات</button>
+      <div class="nav-divider"></div>
+      <div class="nav-section-label">الأدوات</div>
+      <button class="nav-item" data-page="search" onclick="showPage('search');closeDrawer()"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.8"/><path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>البحث المتقدم</button>
+      <button class="nav-item" data-page="audit-log" onclick="showPage('audit-log');closeDrawer()"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><polyline points="14 2 14 8 20 8" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>سجل العمليات</button>
+      <button class="nav-item" data-page="users" onclick="showPage('users');closeDrawer()"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="1.8"/><path d="M2 21c0-4 3.1-7 7-7h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M16 19l2 2 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>المستخدمون</button>
+    </nav>
+    <div class="sidebar-user">
+      <div class="sidebar-user-avatar">م</div>
+      <div class="sidebar-user-info">
+        <div class="sidebar-user-name">المدير</div>
+        <div class="sidebar-user-role">مشرف النظام</div>
+      </div>
+      <div class="sidebar-user-actions">
+        <button class="sidebar-icon-btn" onclick="openChangePassModal();closeDrawer()" title="تغيير كلمة السر">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+        <button class="sidebar-icon-btn" onclick="logout()" title="تسجيل الخروج" style="color:rgba(255,100,85,.6)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom nav (mobile) -->
+  <div class="bottom-nav">
+    <div class="bottom-nav-items">
+      <button class="bnav-item active" onclick="showPage('dashboard')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/></svg>الرئيسية</button>
+      <button class="bnav-item" onclick="showPage('news')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M7 8h10M7 12h10M7 16h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>الأخبار</button>
+      <button class="bnav-item" onclick="showPage('obituaries')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>الوفيات</button>
+      <button class="bnav-item" onclick="showPage('events')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M8 3v4M16 3v4M3 9h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>المناسبات</button>
+      <button class="bnav-item" onclick="openDrawer()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>المزيد</button>
+    </div>
+  </div>
+
+  <!-- Sidebar (desktop) -->
+  <aside class="sidebar">
+    <!-- Logo -->
+    <div class="sidebar-logo">
+      <img src="https://vjkqtcggjkxuskmavolc.supabase.co/storage/v1/object/public/news-images/logo.png">
+      <div class="sidebar-logo-text">
+        <span>معن نيوز</span>
+        <span>لوحة الإدارة</span>
+      </div>
+    </div>
+
+    <nav>
+      <!-- الرئيسية -->
+      <button class="nav-item active" onclick="showPage('dashboard')">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/></svg>
+        الرئيسية
+      </button>
+
+      <!-- المحتوى -->
+      <div class="nav-section-label">المحتوى</div>
+      <button class="nav-item" onclick="showPage('news')">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M7 8h10M7 12h10M7 16h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        الأخبار
+      </button>
+      <button class="nav-item" onclick="showPage('obituaries')">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        الوفيات
+      </button>
+      <button class="nav-item" onclick="showPage('events')">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M8 3v4M16 3v4M3 9h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        المناسبات
+      </button>
+      <button class="nav-item" onclick="showPage('services')">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.7.6 2.5a2 2 0 0 1-.4 2.1L8 9.6a16 16 0 0 0 6.4 6.4l1.3-1.3a2 2 0 0 1 2.1-.4c.8.3 1.6.5 2.5.6a2 2 0 0 1 1.7 2Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        الخدمات
+      </button>
+      <button class="nav-item" data-page="ads" onclick="showPage('ads')">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><rect x="2" y="5" width="20" height="14" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M8 12h8M8 16h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="5.5" cy="12" r="1.5" fill="currentColor"/></svg>
+        الإعلانات
+      </button>
+
+      <!-- المجالس الحسينية - accordion -->
+      <div class="nav-section-label">المجالس الحسينية</div>
+      <button class="nav-accordion-btn" id="majalis-accordion-btn" onclick="toggleAccordion('majalis-accordion')">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 2L3 9v11h18V9l-9-7Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 22V12h6v10" stroke="currentColor" stroke-width="1.8"/></svg>
+        المجالس الحسينية
+        <svg class="nav-accordion-arrow" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="nav-accordion-body" id="majalis-accordion">
+        <button class="nav-item nav-sub" onclick="showPage('centers')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 2L3 9v11h18V9l-9-7Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 22V12h6v10" stroke="currentColor" stroke-width="1.8"/></svg>
+          المجالس
+        </button>
+        <button class="nav-item nav-sub" onclick="showPage('khateebs')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.8"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          الخطباء
+        </button>
+        <button class="nav-item nav-sub" onclick="showPage('majalis')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M8 3v4M16 3v4M3 9h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          المآتم
+        </button>
+        <button class="nav-item nav-sub" data-page="calendar" onclick="showPage('calendar')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M8 2v4M16 2v4M3 10h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          التقويم
+        </button>
+        <button class="nav-item nav-sub" data-page="majalis-stats" onclick="showPage('majalis-stats')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M3 20h18M5 20V10M9 20V4M13 20V14M17 20V8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          الإحصائيات
+        </button>
+      </div>
+
+      <!-- الأدوات -->
+      <div class="nav-divider"></div>
+      <div class="nav-section-label">الأدوات</div>
+      <button class="nav-item" data-page="search" onclick="showPage('search')">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.8"/><path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        البحث المتقدم
+      </button>
+      <button class="nav-item" data-page="audit-log" onclick="showPage('audit-log')">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><polyline points="14 2 14 8 20 8" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><line x1="8" y1="13" x2="16" y2="13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="8" y1="17" x2="16" y2="17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        سجل العمليات
+      </button>
+      <button class="nav-item" data-page="users" onclick="showPage('users')">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="1.8"/><path d="M2 21c0-4 3.1-7 7-7h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M16 19l2 2 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        المستخدمون
+      </button>
+    </nav>
+
+    <!-- User card at bottom -->
+    <div class="sidebar-user">
+      <div class="sidebar-user-avatar" id="sidebar-avatar">م</div>
+      <div class="sidebar-user-info">
+        <div class="sidebar-user-name" id="sidebar-username">المدير</div>
+        <div class="sidebar-user-role">مشرف النظام</div>
+      </div>
+      <div class="sidebar-user-actions">
+        <button class="sidebar-icon-btn" onclick="openChangePassModal()" title="تغيير كلمة السر">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+        <button class="sidebar-icon-btn" onclick="logout()" title="تسجيل الخروج" style="color:rgba(255,100,85,.6)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-header"><h2>مرحباً</h2></div>
+      <div class="stats">
+        <div class="stat-card"><div class="num" id="stat-news">-</div><div class="lbl">خبر منشور</div></div>
+        <div class="stat-card"><div class="num" id="stat-obits">-</div><div class="lbl">نعي</div></div>
+        <div class="stat-card"><div class="num" id="stat-majalis">-</div><div class="lbl">مجلس</div></div>
+        <div class="stat-card"><div class="num" id="stat-events">-</div><div class="lbl">مناسبة</div></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>آخر الأخبار</th><th>التصنيف</th><th>الحالة</th><th>التاريخ</th></tr></thead>
+          <tbody id="recent-news"><tr><td colspan="4" class="loading">جاري التحميل...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- NEWS -->
+    <div class="page" id="page-news">
+      <div class="page-header">
+        <h2>الأخبار</h2>
+        <div style="display:flex;gap:8px">
+          <button class="btn-add" style="background:#f1f5f9;color:#374151;font-size:13px" onclick="openCatModal()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2Z" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v4l3 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            إدارة الأقسام
+          </button>
+          <button class="btn-add" onclick="openNewsModal()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+            إضافة خبر
+          </button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>الصورة</th><th>العنوان</th><th>التصنيف</th><th>الحالة</th><th>التاريخ</th><th>إجراءات</th></tr></thead>
+          <tbody id="news-list"><tr><td colspan="6" class="loading">جاري التحميل...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- OBITUARIES -->
+    <div class="page" id="page-obituaries">
+      <div class="page-header">
+        <h2>الوفيات</h2>
+        <button class="btn-add" onclick="openObitModal()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+          إضافة نعي
+        </button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>الاسم</th><th>وقت الدفن</th><th>مكان الدفن</th><th>مجلس الرجال</th><th>الحالة</th><th>تاريخ النشر</th><th>إجراءات</th></tr></thead>
+          <tbody id="obit-list"><tr><td colspan="6" class="loading">جاري التحميل...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CENTERS -->
+    <div class="page" id="page-centers">
+      <div class="page-header">
+        <h2>المجالس الحسينية</h2>
+        <button class="btn-add" onclick="openCenterModal()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+          إضافة مجلس
+        </button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>اسم المجلس</th><th>المكان</th><th>الحالة</th><th>تاريخ النشر</th><th>إجراءات</th></tr></thead>
+          <tbody id="centers-list"><tr><td colspan="4" class="loading">جاري التحميل...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- KHATEEBS -->
+    <div class="page" id="page-khateebs">
+      <div class="page-header">
+        <h2>الخطباء</h2>
+        <button class="btn-add" onclick="openKhateebModal()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+          إضافة خطيب
+        </button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>الاسم</th><th>الصورة</th><th>الحالة</th><th>تاريخ النشر</th><th>إجراءات</th></tr></thead>
+          <tbody id="khateebs-list"><tr><td colspan="4" class="loading">جاري التحميل...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- MAJALIS (جلسات) -->
+    <div class="page" id="page-majalis">
+      <div class="page-header">
+        <h2>المآتم</h2>
+        <button class="btn-add" onclick="openMajlisModal()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+          إضافة مأتم
+        </button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>المجلس</th><th>الخطيب</th><th>الوقت</th><th>المدة</th><th>الحالة</th><th>تاريخ النشر</th><th>إجراءات</th></tr></thead>
+          <tbody id="majalis-list"><tr><td colspan="6" class="loading">جاري التحميل...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- EVENTS -->
+    <div class="page" id="page-events">
+      <div class="page-header">
+        <h2>المناسبات</h2>
+        <div style="display:flex;gap:8px">
+          <button class="btn-add" style="background:#f1f5f9;color:#374151;font-size:13px" onclick="openEventTypesModal()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2Z" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v4l3 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            إدارة الأنواع
+          </button>
+          <button class="btn-add" onclick="openEventModal()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+            إضافة مناسبة
+          </button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>الصورة</th><th>العنوان</th><th>النوع</th><th>التاريخ</th><th>المكان</th><th>الحالة</th><th>تاريخ النشر</th><th>إجراءات</th></tr></thead>
+          <tbody id="events-list"><tr><td colspan="8" class="loading">جاري التحميل...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SERVICES -->
+    <div class="page" id="page-services">
+      <div class="page-header">
+        <h2>الخدمات</h2>
+        <button class="btn-add" onclick="openServiceModal()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+          إضافة خدمة
+        </button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>الاسم</th><th>الرقم</th><th>الحالة</th><th>تاريخ النشر</th><th>إجراءات</th></tr></thead>
+          <tbody id="services-list"><tr><td colspan="4" class="loading">جاري التحميل...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+
+    <!-- USERS -->
+    <div class="page" id="page-users">
+      <div class="page-header">
+        <h2>المستخدمون</h2>
+        <button class="btn-add" onclick="openUserModal()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+          إضافة مستخدم
+        </button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>الاسم</th><th>البريد الإلكتروني</th><th>الصلاحية</th><th>القسم</th><th>إجراءات</th></tr></thead>
+          <tbody id="users-list"><tr><td colspan="5" class="loading">جاري التحميل...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ADS -->
+    <div class="page" id="page-ads">
+      <div class="page-header">
+        <h2>الاعلانات</h2>
+        <button class="btn-add" onclick="openAdModal()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+          اضافة اعلان
+        </button>
+      </div>
+      <div class="stats" style="margin-bottom:20px">
+        <div class="stat-card"><div class="num" id="ads-stat-total">-</div><div class="lbl">اجمالي الاعلانات</div></div>
+        <div class="stat-card"><div class="num" id="ads-stat-active">-</div><div class="lbl">نشط</div></div>
+        <div class="stat-card"><div class="num" id="ads-stat-views">-</div><div class="lbl">مشاهدات</div></div>
+        <div class="stat-card"><div class="num" id="ads-stat-clicks">-</div><div class="lbl">نقرات</div></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>الاعلان</th><th>الرابط</th><th>الفترة</th><th>مشاهدات</th><th>نقرات</th><th>الحالة</th><th>تاريخ النشر</th><th>اجراءات</th></tr></thead>
+          <tbody id="ads-list"><tr><td colspan="7" class="loading">جاري التحميل...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CALENDAR -->
+    <div class="page" id="page-calendar">
+      <div class="page-header">
+        <h2>تقويم المجالس</h2>
+        <div style="display:flex;border:1.5px solid #e5e7eb;border-radius:10px;overflow:hidden">
+          <button class="cal-view-btn active" data-view="monthly" onclick="switchCalView('monthly')">شهري</button>
+          <button class="cal-view-btn" data-view="weekly" onclick="switchCalView('weekly')" style="border-right:1px solid #e5e7eb">اسبوعي</button>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <button onclick="calPrev()" style="padding:8px 16px;border-radius:10px;border:1.5px solid #e5e7eb;background:#fff;cursor:pointer;font-family:inherit;font-weight:700">السابق</button>
+        <h3 id="cal-title" style="font-size:16px;font-weight:700"></h3>
+        <button onclick="calNext()" style="padding:8px 16px;border-radius:10px;border:1.5px solid #e5e7eb;background:#fff;cursor:pointer;font-family:inherit;font-weight:700">التالي</button>
+      </div>
+      <div id="cal-body"></div>
+    </div>
+
+    <!-- SEARCH -->
+    <div class="page" id="page-search">
+      <div class="page-header"><h2>البحث المتقدم</h2></div>
+      <div style="background:#fff;border-radius:var(--radius);padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.05);margin-bottom:20px">
+        <div class="form-grid">
+          <div class="col-2">
+            <div class="field"><label>الخطيب</label><select id="srch-khateeb"><option value="">كل الخطباء</option></select></div>
+            <div class="field"><label>المأتم</label><select id="srch-center"><option value="">كل المآتم</option></select></div>
+          </div>
+          <div class="col-2">
+            <div class="field"><label>الموضوع / المناسبة</label><input type="text" id="srch-topic" placeholder="ابحث بالموضوع..."></div>
+            <div class="field"><label>المكان</label><input type="text" id="srch-place" placeholder="المدينة او المكان..."></div>
+          </div>
+          <div class="col-2">
+            <div class="field"><label>من تاريخ</label><input type="date" id="srch-from"></div>
+            <div class="field"><label>الى تاريخ</label><input type="date" id="srch-to"></div>
+          </div>
+          <div style="display:flex;gap:10px;justify-content:flex-end">
+            <button class="btn-cancel" onclick="clearSearch()">مسح</button>
+            <button class="btn-save" onclick="runSearch()">بحث</button>
+          </div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>المأتم</th><th>الخطيب</th><th>الوقت</th><th>المكان</th><th>البداية</th><th>النهاية</th></tr></thead>
+          <tbody id="search-results"><tr><td colspan="6" class="loading">ادخل معايير البحث ثم اضغط بحث</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- MAJALIS STATS -->
+    <div class="page" id="page-majalis-stats">
+      <div class="page-header"><h2>احصائيات المجالس</h2></div>
+      <div class="stats" style="margin-bottom:24px">
+        <div class="stat-card"><div class="num" id="mst-total">-</div><div class="lbl">اجمالي المجالس</div></div>
+        <div class="stat-card"><div class="num" id="mst-centers">-</div><div class="lbl">اجمالي المآتم</div></div>
+        <div class="stat-card"><div class="num" id="mst-khateebs">-</div><div class="lbl">اجمالي الخطباء</div></div>
+        <div class="stat-card"><div class="num" id="mst-events">-</div><div class="lbl">اجمالي المناسبات</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px" class="stats-2col">
+        <div>
+          <h3 style="font-size:15px;font-weight:800;margin-bottom:12px">اكثر الخطباء نشاطاً</h3>
+          <div class="table-wrap"><table>
+            <thead><tr><th>الخطيب</th><th>المجالس</th><th>النسبة</th></tr></thead>
+            <tbody id="mst-khateebs-table"><tr><td colspan="3" class="loading">جاري التحميل...</td></tr></tbody>
+          </table></div>
+        </div>
+        <div>
+          <h3 style="font-size:15px;font-weight:800;margin-bottom:12px">اكثر المآتم استضافة</h3>
+          <div class="table-wrap"><table>
+            <thead><tr><th>المأتم</th><th>المجالس</th><th>النسبة</th></tr></thead>
+            <tbody id="mst-centers-table"><tr><td colspan="3" class="loading">جاري التحميل...</td></tr></tbody>
+          </table></div>
+        </div>
+      </div>
+      <h3 style="font-size:15px;font-weight:800;margin-bottom:12px">توزيع المجالس حسب الشهر</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>الشهر</th><th>عدد المجالس</th><th>النسبة</th></tr></thead>
+        <tbody id="mst-months-table"><tr><td colspan="3" class="loading">جاري التحميل...</td></tr></tbody>
+      </table></div>
+    </div>
+
+    <!-- AUDIT LOG -->
+    <div class="page" id="page-audit-log">
+      <div class="page-header"><h2>سجل العمليات</h2></div>
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+        <select id="audit-filter-action" onchange="loadAuditLog(this.value,document.getElementById('audit-filter-table').value)" style="height:38px;border:1.5px solid #e5e7eb;border-radius:10px;padding:0 12px;font-size:13px;font-family:inherit;outline:none;background:#fff">
+          <option value="">كل العمليات</option>
+          <option value="insert">اضافة</option>
+          <option value="update">تعديل</option>
+          <option value="delete">حذف</option>
+          <option value="publish">نشر</option>
+          <option value="unpublish">الغاء نشر</option>
+        </select>
+        <select id="audit-filter-table" onchange="loadAuditLog(document.getElementById('audit-filter-action').value,this.value)" style="height:38px;border:1.5px solid #e5e7eb;border-radius:10px;padding:0 12px;font-size:13px;font-family:inherit;outline:none;background:#fff">
+          <option value="">كل الجداول</option>
+          <option value="news">الاخبار</option>
+          <option value="obituaries">الوفيات</option>
+          <option value="majalis">المجالس</option>
+          <option value="events">المناسبات</option>
+          <option value="services">الخدمات</option>
+          <option value="ads">الاعلانات</option>
+          <option value="hussaini_centers">المآتم</option>
+          <option value="khateebs">الخطباء</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>التاريخ</th><th>المستخدم</th><th>العملية</th><th>الجدول</th><th>الوصف</th></tr></thead>
+          <tbody id="audit-list"><tr><td colspan="5" class="loading">جاري التحميل...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ===== MODALS ===== -->
+
+<!-- News Modal -->
+<div class="modal-overlay" id="newsModal">
+  <div class="modal">
+  <div class="modal-inner">
+    <h3 id="newsModalTitle">إضافة خبر</h3>
+    <div class="form-grid">
+      <div class="field"><label>العنوان *</label><input type="text" id="n-title" placeholder="عنوان الخبر"></div>
+      <div class="field"><label>المحتوى</label><textarea id="n-body" placeholder="تفاصيل الخبر..."></textarea></div>
+      <div class="field"><label>التصنيف *</label>
+        <select id="n-category" required><option value="">اختر التصنيف</option></select>
+      </div>
+
+      <!-- الصورة: رفع أو رابط -->
+      <div class="field">
+        <label>الصورة</label>
+        <div class="img-tabs">
+          <button type="button" class="img-tab active" onclick="switchImgTab('n', 'upload')">رفع صورة</button>
+          <button type="button" class="img-tab" onclick="switchImgTab('n', 'url')">رابط URL</button>
+        </div>
+        <div class="img-panel active" id="n-img-panel-upload">
+          <div class="img-upload" onclick="document.getElementById('n-file').click()">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="#9ca3af" stroke-width="1.8" stroke-linecap="round"/><polyline points="17 8 12 3 7 8" stroke="#9ca3af" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><line x1="12" y1="3" x2="12" y2="15" stroke="#9ca3af" stroke-width="1.8" stroke-linecap="round"/></svg>
+            <p>اضغط لاختيار صورة من جهازك</p>
+            <input type="file" id="n-file" accept=".jpg,.jpeg,.png,.JPG,.JPEG,.PNG" onchange="previewImg(this,'n-preview','n-image')">
+          </div>
+          <img id="n-preview" class="img-preview">
+        </div>
+        <div class="img-panel" id="n-img-panel-url">
+          <input type="text" id="n-image" placeholder="https://..." style="width:100%;height:44px;border:1.5px solid #e5e7eb;border-radius:12px;padding:0 14px;font-size:14px;outline:none;">
+        </div>
+      </div>
+
+      <!-- الشارة -->
+      <div class="field">
+        <label>الشارة</label>
+        <div class="badge-picker">
+          <button type="button" class="badge-pick sel-none active" data-badge="" onclick="selectBadge(this)">بدون</button>
+          <button type="button" class="badge-pick sel-urgent" data-badge="urgent" onclick="selectBadge(this)"> عاجل</button>
+          <button type="button" class="badge-pick sel-new" data-badge="new" onclick="selectBadge(this)"> جديد</button>
+          <button type="button" class="badge-pick sel-important" data-badge="important" onclick="selectBadge(this)"> هام</button>
+          <button type="button" class="badge-pick sel-exclusive" data-badge="exclusive" onclick="selectBadge(this)"> خاص</button>
+        </div>
+      </div>
+
+      <!-- وقت النشر -->
+      <div class="field">
+        <label>النشر</label>
+        <div class="publish-picker" id="n-pub-picker">
+          <button type="button" class="pub-opt active" data-pub="now" onclick="selectPub('n',this)">فوراً</button>
+          <button type="button" class="pub-opt" data-pub="scheduled" onclick="selectPub('n',this)">وقت محدد</button>
+          <button type="button" class="pub-opt" data-pub="draft" onclick="selectPub('n',this)">مسودة</button>
+        </div>
+        <div class="pub-scheduled-wrap" id="n-scheduled-wrap">
+          <input type="datetime-local" id="n-scheduled-at">
+        </div>
+      </div>
+    </div>
+    </div><div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('newsModal')">إلغاء</button>
+      <button class="btn-save" onclick="saveNews()">نشر</button>
+    </div>
+  </div>
+</div>
+
+<!-- View Detail Modal -->
+<div class="modal-overlay" id="viewDetailModal">
+  <div class="modal" style="width:min(90vw,700px);">
+  <div class="modal-inner">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid #f1f5f9; padding-bottom:12px;">
+      <h3 id="vd-title-header" style="font-size:20px; font-weight:900; color:var(--green); margin:0;">التفاصيل</h3>
+      <button onclick="closeModal('viewDetailModal')" style="background:none; border:0; font-size:24px; cursor:pointer; color:var(--muted); font-weight:bold; line-height:1;">&times;</button>
+    </div>
+    
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <!-- Image / Photo -->
+      <img id="vd-image" style="width:100%; border-radius:12px; display:none; background:#f1f5f9; border:1px solid #e5e7eb;">
+      
+      <!-- Details Grid -->
+      <div id="vd-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px; background:#f8fafc; padding:16px; border-radius:12px; border:1px solid #e5e7eb;">
+        <!-- Dynamic fields will be inserted here -->
+      </div>
+      
+      <!-- Description / Body -->
+      <div id="vd-body-container" style="display:none;">
+        <h4 style="font-size:13px; font-weight:700; color:var(--muted); margin-bottom:6px;">المحتوى / التفاصيل الإضافية</h4>
+        <div id="vd-body" style="font-size:15px; line-height:1.8; color:#374151; white-space:pre-line; max-height:260px; overflow-y:auto; padding-right:4px;"></div>
+      </div>
+    </div>
+    
+  </div>
+  <div class="modal-footer" style="padding:16px 28px;border-top:1px solid #f1f5f9;">
+    <button class="btn-cancel" onclick="closeModal('viewDetailModal')">إغلاق</button>
+    <button class="btn-save" id="vd-edit-btn" style="display:none;" onclick="openEditFromDetailView()">تعديل</button>
+  </div>
+  </div>
+</div>
+
+<!-- Obituary Modal -->
+<div class="modal-overlay" id="obitModal">
+  <div class="modal">
+  <div class="modal-inner">
+    <h3 id="obitModalTitle">إضافة نعي</h3>
+    <div class="form-grid">
+      <div class="field"><label>اسم المتوفي *</label><input type="text" id="o-name" placeholder="الاسم الكامل"></div>
+      <div class="col-2">
+        <div class="field"><label>وقت الدفن</label><input type="text" id="o-burial-time" placeholder="٤:٠٠ مساءً"></div>
+        <div class="field"><label>مكان الدفن</label><input type="text" id="o-burial-place" placeholder="مقبرة معن"></div>
+      </div>
+      <div class="col-2">
+        <div class="field"><label>مجلس الرجال</label><input type="text" id="o-men-council" placeholder="مجلس الحيدرية"></div>
+        <div class="field"><label>وقت الرجال</label><input type="text" id="o-men-time" placeholder="٤:٠٠ - ١٠:٠٠م"></div>
+      </div>
+      <div class="col-2">
+        <div class="field"><label>مجلس النساء</label><input type="text" id="o-women-council" placeholder="منزل الأسرة"></div>
+        <div class="field"><label>وقت النساء</label><input type="text" id="o-women-time" placeholder="٤:٠٠ - ٩:٠٠م"></div>
+      </div>
+      <!-- الصورة: رفع أو رابط -->
+      <div class="field">
+        <label>صورة المتوفي</label>
+        <div class="img-tabs">
+          <button type="button" class="img-tab active" onclick="switchImgTab('o', 'upload')">رفع صورة</button>
+          <button type="button" class="img-tab" onclick="switchImgTab('o', 'url')">رابط URL</button>
+        </div>
+        <div class="img-panel active" id="o-img-panel-upload">
+          <div class="img-upload" onclick="document.getElementById('o-file').click()">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="#9ca3af" stroke-width="1.8" stroke-linecap="round"/><polyline points="17 8 12 3 7 8" stroke="#9ca3af" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><line x1="12" y1="3" x2="12" y2="15" stroke="#9ca3af" stroke-width="1.8" stroke-linecap="round"/></svg>
+            <p>اضغط لاختيار صورة من جهازك</p>
+            <input type="file" id="o-file" accept=".jpg,.jpeg,.png,.JPG,.JPEG,.PNG" onchange="previewImg(this,'o-preview','o-photo')">
+          </div>
+          <img id="o-preview" class="img-preview">
+        </div>
+        <div class="img-panel" id="o-img-panel-url">
+          <input type="text" id="o-photo" placeholder="https://..." style="width:100%;height:44px;border:1.5px solid #e5e7eb;border-radius:12px;padding:0 14px;font-size:14px;outline:none;">
+        </div>
+      </div>
+      <div class="field">
+        <label>النشر</label>
+        <div class="publish-picker" id="o-pub-picker">
+          <button type="button" class="pub-opt active" data-pub="now" onclick="selectPub('o',this)">فوراً</button>
+          <button type="button" class="pub-opt" data-pub="scheduled" onclick="selectPub('o',this)">وقت محدد</button>
+          <button type="button" class="pub-opt" data-pub="draft" onclick="selectPub('o',this)">مسودة</button>
+        </div>
+        <div class="pub-scheduled-wrap" id="o-scheduled-wrap">
+          <input type="datetime-local" id="o-scheduled-at">
+        </div>
+      </div>
+    </div>
+    </div><div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('obitModal')">إلغاء</button>
+      <button class="btn-save" onclick="saveObit()">نشر</button>
+    </div>
+  </div>
+</div>
+
+<!-- Center Modal -->
+<div class="modal-overlay" id="centerModal">
+  <div class="modal">
+  <div class="modal-inner">
+    <h3 id="centerModalTitle">إضافة مجلس</h3>
+    <div class="form-grid">
+      <div class="field"><label>اسم المجلس *</label><input type="text" id="c-name" placeholder="مجلس الحيدرية"></div>
+      <div class="field"><label>المكان</label><input type="text" id="c-location" placeholder="معن - حي..."></div>
+      <div class="field">
+        <label>الحالة</label>
+        <div class="publish-picker" id="c-pub-picker">
+          <button type="button" class="pub-opt active" data-pub="now" onclick="selectPub('c',this)">فعّال</button>
+          <button type="button" class="pub-opt" data-pub="draft" onclick="selectPub('c',this)">معطّل</button>
+        </div>
+      </div>
+    </div>
+    </div><div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('centerModal')">إلغاء</button>
+      <button class="btn-save" onclick="saveCenter()">حفظ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Khateeb Modal -->
+<div class="modal-overlay" id="khateebModal">
+  <div class="modal">
+  <div class="modal-inner">
+    <h3 id="khateebModalTitle">إضافة خطيب</h3>
+    <div class="form-grid">
+      <div class="field"><label>الاسم *</label><input type="text" id="kh-name" placeholder="سماحة الشيخ..."></div>
+      <div class="field"><label>رابط الصورة</label><input type="text" id="kh-photo" placeholder="https://..."></div>
+      <div class="field"><label>نبذة</label><textarea id="kh-bio" placeholder="نبذة مختصرة..."></textarea></div>
+      <div class="field">
+        <label>الحالة</label>
+        <div class="publish-picker" id="kh-pub-picker">
+          <button type="button" class="pub-opt active" data-pub="now" onclick="selectPub('kh',this)">فعّال</button>
+          <button type="button" class="pub-opt" data-pub="draft" onclick="selectPub('kh',this)">معطّل</button>
+        </div>
+      </div>
+    </div>
+    </div><div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('khateebModal')">إلغاء</button>
+      <button class="btn-save" onclick="saveKhateeb()">حفظ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Majlis (جلسة) Modal -->
+<div class="modal-overlay" id="majlisModal">
+  <div class="modal">
+  <div class="modal-inner">
+    <h3 id="majlisModalTitle">إضافة مأتم</h3>
+    <div class="form-grid">
+      <div class="col-2">
+        <div class="field"><label>المجلس *</label>
+          <select id="m-center"><option value="">اختر المجلس</option></select>
+        </div>
+        <div class="field"><label>الخطيب *</label>
+          <select id="m-khateeb-id"><option value="">اختر الخطيب</option></select>
+        </div>
+      </div>
+      <div class="col-2">
+        <div class="field"><label>الوقت</label><input type="text" id="m-time" placeholder="بعد صلاة المغرب"></div>
+        <div class="field"><label>المدة</label><input type="text" id="m-duration" placeholder="١٠ ليالٍ"></div>
+      </div>
+      <div class="col-2">
+        <div class="field"><label>تاريخ البداية</label><input type="date" id="m-start"></div>
+        <div class="field"><label>تاريخ النهاية</label><input type="date" id="m-end"></div>
+      </div>
+      <div class="field">
+        <label>نوع المجلس</label>
+        <div class="publish-picker" id="m-council-picker">
+          <button type="button" class="pub-opt active" data-council="men"  onclick="selectCouncilType('men',this)">رجال</button>
+          <button type="button" class="pub-opt"        data-council="women" onclick="selectCouncilType('women',this)">نساء</button>
+          <button type="button" class="pub-opt"        data-council="both"  onclick="selectCouncilType('both',this)">الاثنان</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>النشر</label>
+        <div class="publish-picker" id="m-pub-picker">
+          <button type="button" class="pub-opt active" data-pub="now" onclick="selectPub('m',this)">فوراً</button>
+          <button type="button" class="pub-opt" data-pub="scheduled" onclick="selectPub('m',this)">وقت محدد</button>
+          <button type="button" class="pub-opt" data-pub="draft" onclick="selectPub('m',this)">مسودة</button>
+        </div>
+        <div class="pub-scheduled-wrap" id="m-scheduled-wrap">
+          <input type="datetime-local" id="m-scheduled-at">
+        </div>
+      </div>
+    </div>
+    </div><div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('majlisModal')">إلغاء</button>
+      <button class="btn-save" onclick="saveMajlis()">نشر</button>
+    </div>
+  </div>
+</div>
+
+<!-- Event Modal -->
+<div class="modal-overlay" id="eventModal">
+  <div class="modal">
+  <div class="modal-inner">
+    <h3 id="eventModalTitle">إضافة مناسبة</h3>
+    <div class="form-grid">
+      <div class="field"><label>العنوان *</label><input type="text" id="e-title" placeholder="عنوان المناسبة"></div>
+      <div class="col-2">
+        <div class="field"><label>النوع</label>
+          <select id="e-type">
+            <option value="wedding">عرس</option>
+            <option value="event">فعالية</option>
+            <option value="other">أخرى</option>
+          </select>
+        </div>
+        <div class="field"><label>التاريخ</label><input type="datetime-local" id="e-date"></div>
+      </div>
+      <div class="field"><label>المكان</label><input type="text" id="e-location" placeholder="صالة الأفراح"></div>
+      <div class="field"><label>التفاصيل</label><textarea id="e-desc" placeholder="وصف المناسبة..."></textarea></div>
+      <div class="field">
+        <label>صورة المناسبة</label>
+        <div class="img-upload" onclick="document.getElementById('e-file').click()">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="#9ca3af" stroke-width="1.8" stroke-linecap="round"/><polyline points="17 8 12 3 7 8" stroke="#9ca3af" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><line x1="12" y1="3" x2="12" y2="15" stroke="#9ca3af" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <p>اضغط لاختيار صورة</p>
+          <input type="file" id="e-file" accept=".jpg,.jpeg,.png" onchange="previewImg(this,'e-preview','e-image')">
+        </div>
+        <img id="e-preview" class="img-preview" style="display:none;margin-top:8px;border-radius:10px;max-height:160px;width:100%;object-fit:cover;">
+        <input type="hidden" id="e-image">
+      </div>
+      <div class="field">
+        <label>النشر</label>
+        <div class="publish-picker" id="e-pub-picker">
+          <button type="button" class="pub-opt active" data-pub="now" onclick="selectPub('e',this)">فوراً</button>
+          <button type="button" class="pub-opt" data-pub="scheduled" onclick="selectPub('e',this)">وقت محدد</button>
+          <button type="button" class="pub-opt" data-pub="draft" onclick="selectPub('e',this)">مسودة</button>
+        </div>
+        <div class="pub-scheduled-wrap" id="e-scheduled-wrap">
+          <input type="datetime-local" id="e-scheduled-at">
+        </div>
+      </div>
+    </div>
+    </div><div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('eventModal')">إلغاء</button>
+      <button class="btn-save" onclick="saveEvent()">نشر</button>
+    </div>
+  </div>
+</div>
+
+<!-- Service Modal -->
+<div class="modal-overlay" id="serviceModal">
+  <div class="modal">
+  <div class="modal-inner">
+    <h3 id="serviceModalTitle">إضافة خدمة</h3>
+    <div class="form-grid">
+      <div class="field"><label>الاسم *</label><input type="text" id="s-name" placeholder="اسم الخدمة"></div>
+      <div class="field"><label>رقم الهاتف</label><input type="text" id="s-phone" placeholder="٩٩٨"></div>
+      <div class="field"><label>وصف</label><input type="text" id="s-desc" placeholder="وصف مختصر"></div>
+      <div class="field">
+        <label>الحالة</label>
+        <div class="publish-picker" id="s-pub-picker">
+          <button type="button" class="pub-opt active" data-pub="now" onclick="selectPub('s',this)">فعّال</button>
+          <button type="button" class="pub-opt" data-pub="draft" onclick="selectPub('s',this)">معطّل</button>
+        </div>
+      </div>
+    </div>
+    </div><div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('serviceModal')">إلغاء</button>
+      <button class="btn-save" onclick="saveService()">حفظ</button>
+    </div>
+  </div>
+</div>
+
+<!-- User Modal -->
+<div class="modal-overlay" id="userModal">
+  <div class="modal">
+  <div class="modal-inner">
+    <h3 id="userModalTitle">إضافة مستخدم</h3>
+    <div class="form-grid">
+      <div class="field"><label>الاسم *</label><input type="text" id="u-name" placeholder="الاسم الكامل"></div>
+      <div class="field"><label>البريد الإلكتروني *</label><input type="email" id="u-email" placeholder="user@example.com"></div>
+      <div class="field" id="u-password-wrap"><label>كلمة السر *</label><input type="password" id="u-password" placeholder="8 أحرف على الأقل"></div>
+      <div class="field">
+        <label>الصلاحية *</label>
+        <select id="u-role" onchange="toggleSectionField()">
+          <option value="super_admin">مدير عام</option>
+          <option value="editor">محرر</option>
+          <option value="section_editor">محرر قسم</option>
+        </select>
+      </div>
+      <div class="field" id="u-section-wrap" style="display:none">
+        <label>القسم المسؤول عنه</label>
+        <select id="u-section">
+          <option value="news">الأخبار</option>
+          <option value="obituaries">الوفيات</option>
+          <option value="majalis">المآتم</option>
+          <option value="events">المناسبات</option>
+          <option value="services">الخدمات</option>
+        </select>
+      </div>
+    </div>
+    </div><div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('userModal')">إلغاء</button>
+      <button class="btn-save" onclick="saveUser()">حفظ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Change Password Modal -->
+<div class="modal-overlay" id="changePassModal">
+  <div class="modal">
+  <div class="modal-inner">
+    <h3>تغيير كلمة السر</h3>
+    <div class="form-grid">
+      <div class="field"><label>كلمة السر الجديدة *</label><input type="password" id="cp-new" placeholder="8 أحرف على الأقل"></div>
+      <div class="field"><label>تأكيد كلمة السر *</label><input type="password" id="cp-confirm" placeholder="أعد كتابة كلمة السر"></div>
+    </div>
+    </div><div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('changePassModal')">إلغاء</button>
+      <button class="btn-save" onclick="saveNewPassword()">تغيير</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- Ad Modal -->
+<!-- CATEGORIES MODAL -->
+<div class="modal-overlay" id="catModal">
+  <div class="modal" style="width:min(90vw,500px)">
+  <div class="modal-inner">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <h3 style="margin:0">إدارة أقسام الأخبار</h3>
+      <button class="btn-cancel" style="padding:8px 14px" onclick="closeModal('catModal')">إغلاق</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:20px">
+      <input type="text" id="cat-name-ar" placeholder="اسم القسم بالعربي *" style="flex:1;height:44px;border:1.5px solid #e5e7eb;border-radius:10px;padding:0 14px;font-size:14px;outline:none;font-family:inherit">
+      <input type="text" id="cat-name-en" placeholder="اسم القسم بالانجليزي" style="flex:1;height:44px;border:1.5px solid #e5e7eb;border-radius:10px;padding:0 14px;font-size:14px;outline:none;font-family:inherit">
+      <button class="btn-save" style="white-space:nowrap;padding:0 18px" onclick="addCategory()">إضافة</button>
+    </div>
+    <div id="cat-list-wrap" style="border:1px solid #f1f5f9;border-radius:12px;overflow:hidden;min-height:60px">
+      <div id="cat-list" style="display:flex;flex-direction:column"></div>
+    </div>
+    <div id="cat-msg" style="font-size:12px;color:#15803d;margin-top:10px;display:none"></div>
+  </div>
+  </div>
+</div>
+
+<!-- EVENT TYPES MODAL -->
+<div class="modal-overlay" id="eventTypesModal">
+  <div class="modal" style="width:min(90vw,500px)">
+  <div class="modal-inner">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <h3 style="margin:0">إدارة أنواع المناسبات</h3>
+      <button class="btn-cancel" style="padding:8px 14px" onclick="closeModal('eventTypesModal')">إغلاق</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:20px">
+      <input type="text" id="etype-key" placeholder="المفتاح (انجليزي بدون مسافة)" style="flex:1;height:44px;border:1.5px solid #e5e7eb;border-radius:10px;padding:0 14px;font-size:14px;outline:none;font-family:inherit;direction:ltr">
+      <input type="text" id="etype-label" placeholder="الاسم بالعربي *" style="flex:1;height:44px;border:1.5px solid #e5e7eb;border-radius:10px;padding:0 14px;font-size:14px;outline:none;font-family:inherit">
+      <button class="btn-save" style="white-space:nowrap;padding:0 18px" onclick="addEventType()">إضافة</button>
+    </div>
+    <div id="etype-list-wrap" style="border:1px solid #f1f5f9;border-radius:12px;overflow:hidden;min-height:60px">
+      <div id="etype-list" style="display:flex;flex-direction:column"></div>
+    </div>
+    <div id="etype-msg" style="font-size:12px;color:#15803d;margin-top:10px;display:none"></div>
+  </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="adModal">
+  <div class="modal">
+  <div class="modal-inner">
+    <h3 id="adModalTitle">اضافة اعلان</h3>
+    <div class="form-grid">
+      <div class="field"><label>العنوان *</label><input type="text" id="ad-title" placeholder="عنوان الاعلان"></div>
+      <div class="field">
+        <label>صورة الإعلان</label>
+        <div class="img-upload" onclick="document.getElementById('ad-file').click()">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="#9ca3af" stroke-width="1.8" stroke-linecap="round"/><polyline points="17 8 12 3 7 8" stroke="#9ca3af" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><line x1="12" y1="3" x2="12" y2="15" stroke="#9ca3af" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <p>اضغط لاختيار صورة (سيتم اقتصاصها 16:9)</p>
+          <input type="file" id="ad-file" accept=".jpg,.jpeg,.png" onchange="openAdCrop(this)">
+        </div>
+        <img id="ad-preview" class="img-preview" style="display:none;margin-top:8px;border-radius:10px;max-height:120px;width:100%;object-fit:cover;">
+        <input type="hidden" id="ad-image">
+      </div>
+      <div class="field"><label>الوصف</label><textarea id="ad-description" placeholder="وصف تفاصيل الإعلان (اختياري)" style="height:80px;resize:vertical"></textarea></div>
+      <div class="field"><label>الموقع / المكان</label><input type="text" id="ad-location" placeholder="مثال: معن، الأردن (اختياري)"></div>
+      <div class="field"><label>الرابط الخارجي</label><input type="text" id="ad-link" placeholder="https://... (اختياري)"></div>
+      <div class="col-2">
+        <div class="field"><label>تاريخ البداية</label><input type="date" id="ad-start"></div>
+        <div class="field"><label>تاريخ النهاية</label><input type="date" id="ad-end"></div>
+      </div>
+      <div class="field">
+        <label>الحالة</label>
+        <div class="publish-picker" id="ad-pub-picker">
+          <button type="button" class="pub-opt active" data-pub="now" onclick="selectPub('ad',this)">نشط</button>
+          <button type="button" class="pub-opt" data-pub="draft" onclick="selectPub('ad',this)">متوقف</button>
+        </div>
+      </div>
+    </div>
+    </div><div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('adModal')">الغاء</button>
+      <button class="btn-save" onclick="saveAd()">حفظ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Ad Crop Modal -->
+<div class="modal-overlay" id="adCropModal" style="z-index:9999">
+  <div class="modal" style="width:min(95vw,620px)">
+    <div class="modal-inner">
+      <h3>اقتصاص صورة الإعلان (9:2)</h3>
+      <p style="font-size:13px;color:#6b7280;margin-bottom:12px">اسحب المنطقة لتحديد الجزء المراد</p>
+      <div id="adCropContainer" style="position:relative;background:#111;border-radius:12px;user-select:none;touch-action:none;overflow:hidden">
+        <img id="adCropImg" style="display:block;width:100%;height:auto;pointer-events:none">
+        <!-- تعتيم الأجزاء خارج المنطقة المحددة -->
+        <div id="cropDimTop"    style="position:absolute;left:0;top:0;right:0;background:rgba(0,0,0,0.6);pointer-events:none"></div>
+        <div id="cropDimBottom" style="position:absolute;left:0;bottom:0;right:0;background:rgba(0,0,0,0.6);pointer-events:none"></div>
+        <div id="cropDimLeft"   style="position:absolute;left:0;background:rgba(0,0,0,0.6);pointer-events:none"></div>
+        <div id="cropDimRight"  style="position:absolute;right:0;background:rgba(0,0,0,0.6);pointer-events:none"></div>
+        <!-- إطار الاقتصاص -->
+        <div id="adCropBox" style="position:absolute;border:2px solid #fff;cursor:move;box-sizing:border-box;display:none">
+          <!-- خطوط ثلث Rule of Thirds -->
+          <div style="position:absolute;left:33.3%;top:0;bottom:0;width:1px;background:rgba(255,255,255,0.3)"></div>
+          <div style="position:absolute;left:66.6%;top:0;bottom:0;width:1px;background:rgba(255,255,255,0.3)"></div>
+          <div style="position:absolute;top:33.3%;left:0;right:0;height:1px;background:rgba(255,255,255,0.3)"></div>
+          <div style="position:absolute;top:66.6%;left:0;right:0;height:1px;background:rgba(255,255,255,0.3)"></div>
+          <!-- زوايا -->
+          <div style="position:absolute;top:-1px;left:-1px;width:16px;height:16px;border-top:3px solid #fff;border-left:3px solid #fff"></div>
+          <div style="position:absolute;top:-1px;right:-1px;width:16px;height:16px;border-top:3px solid #fff;border-right:3px solid #fff"></div>
+          <div style="position:absolute;bottom:-1px;left:-1px;width:16px;height:16px;border-bottom:3px solid #fff;border-left:3px solid #fff"></div>
+          <div style="position:absolute;bottom:-1px;right:-1px;width:16px;height:16px;border-bottom:3px solid #fff;border-right:3px solid #fff"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('adCropModal')">إلغاء</button>
+      <button class="btn-save" onclick="confirmAdCrop()">تأكيد الاقتصاص</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://vjkqtcggjkxuskmavolc.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqa3F0Y2dnamt4dXNrbWF2b2xjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzk0NDAsImV4cCI6MjA5Njg1NTQ0MH0.g9na-GSNB-x_eWeJZ2c_QFVLs5FOJz6_UrO0h1VdQys';
+const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqa3F0Y2dnamt4dXNrbWF2b2xjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTI3OTQ0MCwiZXhwIjoyMDk2ODU1NDQwfQ.G9wst1xhT2pldJwJxEniUQ8eFmAAP8EnIwS-VbdBxok';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const sbAdmin = supabase.createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+
+let editingId = null;
+let categories = [];
+let centers = [];
+let khateebs = [];
+let currentUserName = null;
+let currentUserId = null;
+let calView = 'monthly';
+let calDate = new Date();
+
+// ===== AUTH =====
+async function login(){
+  const email = document.getElementById('loginEmail').value;
+  const pass  = document.getElementById('loginPassword').value;
+  const {error} = await sb.auth.signInWithPassword({email, password: pass});
+  if(error){ document.getElementById('loginError').style.display='block'; return; }
+  initApp();
+}
+
+async function logout(){
+  await sb.auth.signOut();
+  document.getElementById('app').style.display='none';
+  document.getElementById('loginPage').style.display='flex';
+}
+
+sb.auth.onAuthStateChange((event, session) => {
+  if(session) initApp();
+});
+
+async function initApp(){
+  document.getElementById('loginPage').style.display='none';
+  document.getElementById('app').style.display='block';
+  const {data:{user}} = await sb.auth.getUser();
+  currentUserId = user?.id || null;
+  // update sidebar user info
+  if(user?.email){
+    const name = user.email.split('@')[0];
+    const el = document.getElementById('sidebar-username');
+    const av = document.getElementById('sidebar-avatar');
+    if(el) el.textContent = name;
+    if(av) av.textContent = name.charAt(0).toUpperCase();
+  }
+  await Promise.all([loadCategories(), loadCentersData(), loadKhateebsData(), loadCurrentUserRole()]);
+  applyRoleUI();
+  const initialPage = window.location.hash.substring(1) || 'dashboard';
+  showPage(initialPage);
+}
+
+// ===== DRAWER =====
+function openDrawer(){ document.getElementById('drawer').classList.add('open'); document.getElementById('drawerOverlay').classList.add('open'); }
+function closeDrawer(){ document.getElementById('drawer').classList.remove('open'); document.getElementById('drawerOverlay').classList.remove('open'); }
+
+// ===== ACCORDION =====
+function toggleAccordion(id){
+  const body = document.getElementById(id);
+  const btn = document.getElementById(id.replace('-accordion','-accordion-btn') + '-btn') || document.getElementById('majalis-accordion-btn');
+  if(!body) return;
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  if(btn) btn.classList.toggle('open', !isOpen);
+}
+// open accordion if active page is inside it
+function openAccordionForPage(pageId){
+  const majalisPages = ['centers','khateebs','majalis','calendar','majalis-stats'];
+  if(majalisPages.includes(pageId)){
+    const body = document.getElementById('majalis-accordion');
+    const btn = document.getElementById('majalis-accordion-btn');
+    if(body){ body.classList.add('open'); }
+    if(btn){ btn.classList.add('open'); }
+  }
+}
+
+// ===== NAVIGATION =====
+function showPage(id){
+  if (window.location.hash !== '#' + id) {
+    window.location.hash = id;
+    return;
+  }
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item,.bnav-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  openAccordionForPage(id);
+  // highlight sidebar + bottom nav
+  document.querySelectorAll('.nav-item,.bnav-item').forEach(b => {
+    const fn = b.getAttribute('onclick')||'';
+    if(fn.includes(`'${id}'`)) b.classList.add('active');
+  });
+  if(id==='news') loadNews();
+  if(id==='obituaries') loadObits();
+  if(id==='centers') loadCenters();
+  if(id==='khateebs') loadKhateebs();
+  if(id==='majalis') loadMajalis();
+  if(id==='events') loadEvents();
+  if(id==='services') loadServices();
+  if(id==='users') loadUsers();
+  if(id==='dashboard') loadDashboard();
+  if(id==='ads') loadAds();
+  if(id==='calendar') loadCalendar();
+  if(id==='majalis-stats') loadMajalisStats();
+  if(id==='search') initSearch();
+  if(id==='audit-log') loadAuditLog();
+}
+
+// ===== DASHBOARD =====
+async function loadDashboard(){
+  const [n,o,m,e] = await Promise.all([
+    sb.from('news').select('*',{count:'exact',head:true}).eq('is_published',true),
+    sb.from('obituaries').select('*',{count:'exact',head:true}),
+    sb.from('majalis').select('*',{count:'exact',head:true}),
+    sb.from('events').select('*',{count:'exact',head:true}),
+  ]);
+  document.getElementById('stat-news').textContent = n.count ?? 0;
+  document.getElementById('stat-obits').textContent = o.count ?? 0;
+  document.getElementById('stat-majalis').textContent = m.count ?? 0;
+  document.getElementById('stat-events').textContent = e.count ?? 0;
+
+  const {data} = await sb.from('news').select('id,title,is_published,is_breaking,created_at,categories(name_ar)').order('created_at',{ascending:false}).limit(8);
+  const tbody = document.getElementById('recent-news');
+  if(!data?.length){ tbody.innerHTML='<tr><td colspan="4" class="empty"><p>لا توجد أخبار</p></td></tr>'; return; }
+  tbody.innerHTML = data.map(r => `
+    <tr>
+      <td data-label="العنوان"><a href="#" onclick="viewNewsDetail('${r.id}'); return false;" style="color:var(--green); text-decoration:none; font-weight:700;">${r.title}</a></td>
+      <td data-label="التصنيف">${r.categories?.name_ar||'-'}</td>
+      <td data-label="الحالة">${r.is_breaking?'<span class="badge breaking">عاجل</span>':''} <span class="badge ${r.is_published?'published':'draft'}">${r.is_published?'منشور':'مسودة'}</span></td>
+      <td data-label="التاريخ">${fmtDate(r.created_at)}</td>
+    </tr>`).join('');
+}
+
+// ===== CATEGORIES =====
+async function loadCategories(){
+  const {data} = await sbAdmin.from('categories').select('*').order('name_ar');
+  categories = data || [];
+  const sel = document.getElementById('n-category');
+  sel.innerHTML = '<option value="">اختر التصنيف</option>' + categories.map(c=>`<option value="${c.id}">${c.name_ar}</option>`).join('');
+}
+
+// ===== CATEGORIES MANAGEMENT =====
+async function openCatModal(){
+  document.getElementById('catModal').classList.add('open');
+  await renderCatList();
+}
+
+async function renderCatList(){
+  // fresh fetch to avoid stale data
+  const {data} = await sbAdmin.from('categories').select('*').order('name_ar');
+  categories = data || [];
+  // also refresh the news modal select
+  const sel = document.getElementById('n-category');
+  if(sel) sel.innerHTML = '<option value="">اختر التصنيف</option>' + categories.map(c=>`<option value="${c.id}">${c.name_ar}</option>`).join('');
+
+  const wrap = document.getElementById('cat-list');
+  if(!wrap) return;
+  if(!categories.length){
+    wrap.innerHTML = '<div style="padding:20px;text-align:center;color:#9ca3af;font-size:13px">لا توجد أقسام بعد</div>';
+    return;
+  }
+  wrap.innerHTML = categories.map((c,i) => `
+    <div id="cat-row-${c.id}" style="display:flex;align-items:center;padding:12px 16px;gap:8px;${i>0?'border-top:1px solid #f1f5f9':''}">
+      <div style="flex:1" id="cat-view-${c.id}">
+        <div style="font-size:14px;font-weight:700;color:#111827">${c.name_ar}</div>
+        ${c.name_en ? `<div style="font-size:12px;color:#9ca3af;margin-top:2px">${c.name_en}</div>` : ''}
+      </div>
+      <div id="cat-edit-${c.id}" style="display:none;flex:1">
+        <input id="cat-edit-input-${c.id}" value="${c.name_ar}" style="width:100%;height:36px;border:1.5px solid var(--green);border-radius:8px;padding:0 10px;font-size:14px;outline:none;font-family:inherit">
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button onclick="startEditCat('${c.id}')" id="cat-btn-edit-${c.id}" style="padding:6px 12px;border-radius:8px;background:#f0fdf4;color:var(--green);font-size:12px;font-weight:700;border:0;cursor:pointer">تعديل</button>
+        <button onclick="saveEditCat('${c.id}')" id="cat-btn-save-${c.id}" style="display:none;padding:6px 12px;border-radius:8px;background:var(--green);color:#fff;font-size:12px;font-weight:700;border:0;cursor:pointer">حفظ</button>
+        <button onclick="cancelEditCat('${c.id}')" id="cat-btn-cancel-${c.id}" style="display:none;padding:6px 12px;border-radius:8px;background:#f1f5f9;color:#6b7280;font-size:12px;font-weight:700;border:0;cursor:pointer">إلغاء</button>
+        <button onclick="deleteCat('${c.id}')" id="cat-btn-del-${c.id}" style="padding:6px 12px;border-radius:8px;background:#fff1f2;color:#dc2626;font-size:12px;font-weight:700;border:0;cursor:pointer">حذف</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function addCategory(){
+  const nameAr = document.getElementById('cat-name-ar').value.trim();
+  const nameEn = document.getElementById('cat-name-en').value.trim();
+  if(!nameAr){ alert('أدخل اسم القسم بالعربي'); return; }
+  // slug مطلوب في الـ schema
+  const slug = (nameEn || nameAr).toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9\u0600-\u06FF-]/g,'') + '-' + Date.now();
+  const {error} = await sbAdmin.from('categories').insert({name_ar:nameAr, name_en:nameEn||null, slug});
+  if(error){ alert('خطأ: '+error.message); return; }
+  document.getElementById('cat-name-ar').value='';
+  document.getElementById('cat-name-en').value='';
+  await renderCatList();
+  showCatMsg('تم إضافة القسم بنجاح');
+}
+
+async function deleteCat(id){
+  const {count} = await sbAdmin.from('news').select('id',{count:'exact',head:true}).eq('category_id',id);
+  const cat = categories.find(c=>c.id===id);
+  const catName = cat?.name_ar || 'هذا القسم';
+
+  // build confirm modal
+  const overlay = document.createElement('div');
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)';
+  overlay.innerHTML=`
+    <div style="background:#fff;border-radius:20px;width:min(90vw,440px);padding:28px;box-shadow:0 40px 80px rgba(0,0,0,.3);font-family:inherit">
+      <div style="width:52px;height:52px;border-radius:50%;background:#fff1f2;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 9v4M12 17h.01" stroke="#dc2626" stroke-width="2" stroke-linecap="round"/><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" stroke="#dc2626" stroke-width="1.8" stroke-linejoin="round"/></svg>
+      </div>
+      <h3 style="text-align:center;font-size:18px;font-weight:900;color:#111827;margin-bottom:10px">حذف قسم "${catName}"</h3>
+      <p style="text-align:center;font-size:14px;color:#6b7280;line-height:1.7;margin-bottom:20px">
+        ${count > 0
+          ? `يوجد <strong style="color:#111827">${count} خبر</strong> مرتبط بهذا القسم.<br>سيتم نقلها تلقائياً إلى قسم <strong style="color:#1d7f64">عام</strong> قبل الحذف.`
+          : 'لا توجد أخبار مرتبطة بهذا القسم.<br>هل أنت متأكد من الحذف؟'}
+      </p>
+      <div style="display:flex;gap:10px">
+        <button id="cat-del-cancel" style="flex:1;padding:12px;border-radius:10px;background:#f1f5f9;color:#6b7280;font-size:14px;font-weight:700;border:0;cursor:pointer;font-family:inherit">إلغاء</button>
+        <button id="cat-del-confirm" style="flex:1;padding:12px;border-radius:10px;background:#dc2626;color:#fff;font-size:14px;font-weight:700;border:0;cursor:pointer;font-family:inherit">
+          ${count > 0 ? 'نقل وحذف' : 'حذف'}
+        </button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  overlay.querySelector('#cat-del-cancel').onclick = () => document.body.removeChild(overlay);
+  overlay.querySelector('#cat-del-confirm').onclick = async () => {
+    const btn = overlay.querySelector('#cat-del-confirm');
+    btn.textContent = 'جاري التنفيذ...';
+    btn.disabled = true;
+
+    if(count > 0){
+      let general = categories.find(c => c.name_ar === 'عام');
+      if(!general){
+        const {data:newCat, error:ce} = await sbAdmin.from('categories').insert({name_ar:'عام', name_en:'general', slug:'general'}).select().single();
+        if(ce){ alert('خطأ في إنشاء قسم عام: '+ce.message); document.body.removeChild(overlay); return; }
+        general = newCat;
+      }
+      const {error:ue} = await sbAdmin.from('news').update({category_id: general.id}).eq('category_id', id);
+      if(ue){ alert('خطأ في نقل الأخبار: '+ue.message); document.body.removeChild(overlay); return; }
+    }
+
+    const {error} = await sbAdmin.from('categories').delete().eq('id', id).select();
+    if(error){ alert('خطأ في الحذف: '+error.message); document.body.removeChild(overlay); return; }
+
+    document.body.removeChild(overlay);
+    await renderCatList();
+    showCatMsg(count > 0 ? `تم نقل ${count} خبر إلى "عام" وحذف القسم` : 'تم حذف القسم');
+  };
+}
+
+function showCatMsg(txt){
+  const el = document.getElementById('cat-msg');
+  el.textContent = txt;
+  el.style.display='block';
+  setTimeout(()=>el.style.display='none', 2500);
+}
+
+function startEditCat(id){
+  document.getElementById('cat-view-'+id).style.display = 'none';
+  document.getElementById('cat-edit-'+id).style.display = 'flex';
+  document.getElementById('cat-btn-edit-'+id).style.display = 'none';
+  document.getElementById('cat-btn-del-'+id).style.display = 'none';
+  document.getElementById('cat-btn-save-'+id).style.display = 'inline-block';
+  document.getElementById('cat-btn-cancel-'+id).style.display = 'inline-block';
+  document.getElementById('cat-edit-input-'+id).focus();
+}
+
+function cancelEditCat(id){
+  document.getElementById('cat-view-'+id).style.display = 'block';
+  document.getElementById('cat-edit-'+id).style.display = 'none';
+  document.getElementById('cat-btn-edit-'+id).style.display = 'inline-block';
+  document.getElementById('cat-btn-del-'+id).style.display = 'inline-block';
+  document.getElementById('cat-btn-save-'+id).style.display = 'none';
+  document.getElementById('cat-btn-cancel-'+id).style.display = 'none';
+}
+
+async function saveEditCat(id){
+  const newName = document.getElementById('cat-edit-input-'+id).value.trim();
+  if(!newName){ alert('أدخل اسم القسم'); return; }
+  const btn = document.getElementById('cat-btn-save-'+id);
+  btn.textContent = '...';
+  btn.disabled = true;
+  const {error} = await sbAdmin.from('categories').update({name_ar: newName}).eq('id', id);
+  if(error){ alert('خطأ: '+error.message); btn.textContent='حفظ'; btn.disabled=false; return; }
+  await renderCatList();
+  showCatMsg('تم تعديل اسم القسم بنجاح');
+}
+
+// ===== EVENT TYPES MANAGEMENT =====
+// stored in localStorage since they're config, not content
+function getEventTypes(){
+  try {
+    const stored = localStorage.getItem('eventTypes');
+    if(stored) return JSON.parse(stored);
+  } catch(e){}
+  return [{key:'wedding',label:'عرس'},{key:'event',label:'فعالية'},{key:'other',label:'أخرى'}];
+}
+
+function saveEventTypes(types){
+  localStorage.setItem('eventTypes', JSON.stringify(types));
+  // refresh the select in event modal
+  const sel = document.getElementById('e-type');
+  if(sel) sel.innerHTML = types.map(t=>`<option value="${t.key}">${t.label}</option>`).join('');
+}
+
+function openEventTypesModal(){
+  const modal = document.getElementById('eventTypesModal');
+  openModal('eventTypesModal');
+  renderEventTypeList();
+}
+
+function renderEventTypeList(){
+  const types = getEventTypes();
+  const wrap = document.getElementById('etype-list');
+  if(!types.length){
+    wrap.innerHTML = '<div style="padding:20px;text-align:center;color:#9ca3af;font-size:13px">لا توجد أنواع بعد</div>';
+    return;
+  }
+  wrap.innerHTML = types.map((t,i) => `
+    <div id="etype-row-${t.key}" style="display:flex;align-items:center;padding:12px 16px;gap:8px;${i>0?'border-top:1px solid #f1f5f9':''}">
+      <div style="flex:1" id="etype-view-${t.key}">
+        <div style="font-size:14px;font-weight:700;color:#111827">${t.label}</div>
+        <div style="font-size:12px;color:#9ca3af;margin-top:2px;direction:ltr;text-align:right">${t.key}</div>
+      </div>
+      <div id="etype-edit-${t.key}" style="display:none;flex:1">
+        <input id="etype-edit-input-${t.key}" value="${t.label}" style="width:100%;height:36px;border:1.5px solid var(--green);border-radius:8px;padding:0 10px;font-size:14px;outline:none;font-family:inherit">
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0" id="etype-btns-${t.key}">
+        <button onclick="startEditEventType('${t.key}')" id="etype-btn-edit-${t.key}" style="padding:6px 12px;border-radius:8px;background:#f0fdf4;color:var(--green);font-size:12px;font-weight:700;border:0;cursor:pointer">تعديل</button>
+        <button onclick="saveEditEventType('${t.key}')" id="etype-btn-save-${t.key}" style="display:none;padding:6px 12px;border-radius:8px;background:var(--green);color:#fff;font-size:12px;font-weight:700;border:0;cursor:pointer">حفظ</button>
+        <button onclick="cancelEditEventType('${t.key}')" id="etype-btn-cancel-${t.key}" style="display:none;padding:6px 12px;border-radius:8px;background:#f1f5f9;color:#6b7280;font-size:12px;font-weight:700;border:0;cursor:pointer">إلغاء</button>
+        <button onclick="deleteEventType('${t.key}')" id="etype-btn-del-${t.key}" style="padding:6px 12px;border-radius:8px;background:#fff1f2;color:#dc2626;font-size:12px;font-weight:700;border:0;cursor:pointer">حذف</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function startEditEventType(key){
+  document.getElementById('etype-view-'+key).style.display = 'none';
+  document.getElementById('etype-edit-'+key).style.display = 'flex';
+  document.getElementById('etype-btn-edit-'+key).style.display = 'none';
+  document.getElementById('etype-btn-del-'+key).style.display = 'none';
+  document.getElementById('etype-btn-save-'+key).style.display = 'inline-block';
+  document.getElementById('etype-btn-cancel-'+key).style.display = 'inline-block';
+  document.getElementById('etype-edit-input-'+key).focus();
+}
+
+function cancelEditEventType(key){
+  document.getElementById('etype-view-'+key).style.display = 'block';
+  document.getElementById('etype-edit-'+key).style.display = 'none';
+  document.getElementById('etype-btn-edit-'+key).style.display = 'inline-block';
+  document.getElementById('etype-btn-del-'+key).style.display = 'inline-block';
+  document.getElementById('etype-btn-save-'+key).style.display = 'none';
+  document.getElementById('etype-btn-cancel-'+key).style.display = 'none';
+}
+
+function saveEditEventType(key){
+  const newLabel = document.getElementById('etype-edit-input-'+key).value.trim();
+  if(!newLabel){ alert('أدخل اسم النوع'); return; }
+  const types = getEventTypes().map(t => t.key===key ? {key, label:newLabel} : t);
+  saveEventTypes(types);
+  renderEventTypeList();
+  showEtypeMsg('تم تعديل النوع بنجاح');
+}
+
+function addEventType(){
+  const key = document.getElementById('etype-key').value.trim().replace(/\s+/g,'_').toLowerCase();
+  const label = document.getElementById('etype-label').value.trim();
+  if(!label){ alert('أدخل الاسم العربي'); return; }
+  if(!key){ alert('أدخل المفتاح الإنجليزي'); return; }
+  const types = getEventTypes();
+  if(types.find(t=>t.key===key)){ alert('هذا المفتاح موجود مسبقاً'); return; }
+  types.push({key, label});
+  saveEventTypes(types);
+  document.getElementById('etype-key').value='';
+  document.getElementById('etype-label').value='';
+  renderEventTypeList();
+  showEtypeMsg('تم إضافة النوع بنجاح');
+}
+
+function deleteEventType(key){
+  if(!confirm('هل تريد حذف هذا النوع؟')) return;
+  const types = getEventTypes().filter(t=>t.key!==key);
+  saveEventTypes(types);
+  renderEventTypeList();
+  showEtypeMsg('تم حذف النوع');
+}
+
+function showEtypeMsg(txt){
+  const el = document.getElementById('etype-msg');
+  el.textContent = txt;
+  el.style.display='block';
+  setTimeout(()=>el.style.display='none', 2500);
+}
+
+// ===== NEWS =====
+async function loadNews(){
+  const {data} = await sb.from('news').select('*,categories(name_ar)').order('created_at',{ascending:false});
+  const tbody = document.getElementById('news-list');
+  if(!data?.length){ tbody.innerHTML='<tr><td colspan="6"><div class="empty"><p>لا توجد أخبار</p></div></td></tr>'; return; }
+  tbody.innerHTML = data.map(r=>`
+    <tr>
+      <td data-label="الصورة">${r.image_url?`<img class="thumb-sm" src="${r.image_url}">`:'<div class="thumb-sm"></div>'}</td>
+      <td data-label="العنوان"><a href="#" onclick="viewNewsDetail('${r.id}'); return false;" style="color:var(--green); text-decoration:none; font-weight:700;">${r.title}</a></td>
+      <td data-label="التصنيف">${r.categories?.name_ar||'-'}</td>
+      <td data-label="الحالة">${badgeHtml(r.badge,r.is_breaking)} <span class="badge ${r.is_published?'published':'draft'}">${r.is_published?'منشور':'مسودة'}</span></td>
+      <td data-label="التاريخ">${fmtDate(r.created_at)}</td>
+      <td data-label="إجراءات"><div class="action-btns">
+        <button class="btn-pub" onclick="togglePublish('news','is_published','${r.id}',${r.is_published})">${r.is_published?'إلغاء النشر':'نشر'}</button>
+        <button class="btn-edit" onclick="editNews('${r.id}')">تعديل</button>
+        <button class="btn-del" onclick="deleteRow('news','${r.id}',loadNews)">حذف</button>
+      </div></td>
+    </tr>`).join('');
+}
+
+// ===== PUBLISH PICKER =====
+function selectPub(prefix, btn){
+  btn.closest('.publish-picker').querySelectorAll('.pub-opt').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const wrap = document.getElementById(prefix+'-scheduled-wrap');
+  if(wrap) wrap.classList.toggle('show', btn.dataset.pub==='scheduled');
+}
+
+function getPubState(prefix){
+  const btn = document.querySelector(`#${prefix}-pub-picker .pub-opt.active`);
+  const mode = btn ? btn.dataset.pub : 'now';
+  if(mode==='draft') return {is_published:false, published_at:null};
+  if(mode==='scheduled'){
+    const val = document.getElementById(prefix+'-scheduled-at')?.value;
+    return {is_published:false, published_at: val ? new Date(val).toISOString() : null};
+  }
+  return {is_published:true, published_at: new Date().toISOString()};
+}
+
+function resetPub(prefix){
+  const picker = document.getElementById(prefix+'-pub-picker');
+  if(!picker) return;
+  picker.querySelectorAll('.pub-opt').forEach((b,i)=>b.classList.toggle('active',i===0));
+  const wrap = document.getElementById(prefix+'-scheduled-wrap');
+  if(wrap) wrap.classList.remove('show');
+}
+
+// ===== IMAGE TABS =====
+function switchImgTab(prefix, mode){
+  if (!mode) {
+    mode = prefix;
+    prefix = 'n';
+  }
+  const modal = document.getElementById(prefix + 'Modal') || document.getElementById(prefix + '-pub-picker')?.closest('.modal');
+  if(!modal) return;
+  modal.querySelectorAll('.img-tab').forEach((t,i)=>t.classList.toggle('active', (i===0&&mode==='upload')||(i===1&&mode==='url')));
+  
+  const upPanel = document.getElementById(prefix + '-img-panel-upload');
+  const urlPanel = document.getElementById(prefix + '-img-panel-url');
+  if (upPanel) upPanel.classList.toggle('active', mode==='upload');
+  if (urlPanel) urlPanel.classList.toggle('active', mode==='url');
+}
+
+async function compressImage(file, targetWidth = 1200, quality = 0.85) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      // نسبة 16:9 ثابتة — crop من المنتصف
+      const ratio = 16 / 9;
+      const targetHeight = Math.round(targetWidth / ratio);
+
+      let srcX = 0, srcY = 0, srcW = img.width, srcH = img.height;
+      const srcRatio = img.width / img.height;
+      if (srcRatio > ratio) {
+        srcW = Math.round(img.height * ratio);
+        srcX = Math.round((img.width - srcW) / 2);
+      } else {
+        srcH = Math.round(img.width / ratio);
+        srcY = Math.round((img.height - srcH) / 2);
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+      canvas.getContext('2d').drawImage(img, srcX, srcY, srcW, srcH, 0, 0, targetWidth, targetHeight);
+
+      canvas.toBlob((blob) => {
+        URL.revokeObjectURL(url);
+        resolve(new File([blob], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg' }));
+      }, 'image/jpeg', quality);
+    };
+    img.src = url;
+  });
+}
+
+async function previewImg(input, previewId, urlId){
+  let file = input.files[0];
+  if(!file) return;
+  
+  // Validate file extension
+  const allowedExtensions = ['jpg', 'jpeg', 'png'];
+  if (!allowedExtensions.includes(file.name.split('.').pop().toLowerCase())) {
+    alert('عذراً، يسمح فقط برفع الصور من نوع: jpg, jpeg, png');
+    input.value = '';
+    return;
+  }
+  
+  // Find the save button in the modal to disable it during upload
+  const modal = input.closest('.modal');
+  const saveBtn = modal ? modal.querySelector('.btn-save') : null;
+  const originalBtnText = saveBtn ? saveBtn.textContent : '';
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'جاري رفع الصورة...';
+    saveBtn.style.opacity = '0.6';
+    saveBtn.style.cursor = 'not-allowed';
+  }
+  
+  // Show local preview instantly
+  const reader = new FileReader();
+  reader.onload = e => {
+    const prev = document.getElementById(previewId);
+    prev.src = e.target.result;
+    prev.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+  
+  try {
+    // ضغط الصورة قبل الرفع
+    file = await compressImage(file);
+    const ext = 'jpg';
+
+    // Upload to Supabase Storage via fetch (Service Key - يتجاوز RLS)
+    const path = `news/${Date.now()}.${ext}`;
+    const SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqa3F0Y2dnamt4dXNrbWF2b2xjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTI3OTQ0MCwiZXhwIjoyMDk2ODU1NDQwfQ.G9wst1xhT2pldJwJxEniUQ8eFmAAP8EnIwS-VbdBxok';
+    const uploadRes = await fetch(`https://vjkqtcggjkxuskmavolc.supabase.co/storage/v1/object/news-images/${path}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${SERVICE_KEY}`,
+        'Content-Type': file.type,
+        'x-upsert': 'true'
+      },
+      body: file
+    });
+    if(!uploadRes.ok){
+      const e = await uploadRes.text();
+      alert('خطأ في رفع الصورة: ' + e);
+      return;
+    }
+    const publicUrl = `https://vjkqtcggjkxuskmavolc.supabase.co/storage/v1/object/public/news-images/${path}`;
+    document.getElementById(urlId).value = publicUrl;
+  } catch(err) {
+    alert('حدث خطأ أثناء الاتصال بالخادم لرفع الصورة');
+  } finally {
+    // Restore the save button
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.textContent = originalBtnText;
+      saveBtn.style.opacity = '1';
+      saveBtn.style.cursor = 'pointer';
+    }
+  }
+}
+
+// ===== BADGE PICKER =====
+function selectBadge(btn){
+  btn.closest('.badge-picker').querySelectorAll('.badge-pick').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function getSelectedBadge(){
+  const btn = document.querySelector('.badge-picker .badge-pick.active');
+  return btn ? btn.dataset.badge : '';
+}
+
+function setBadge(val){
+  document.querySelectorAll('.badge-picker .badge-pick').forEach(b=>{
+    b.classList.toggle('active', b.dataset.badge === (val||''));
+  });
+}
+
+let currentEditCallback = null;
+
+function fmtDateTime(d){
+  if(!d) return '-';
+  const date = new Date(d);
+  return date.toLocaleDateString('ar-SA', {year:'numeric', month:'short', day:'numeric'}) + ' • ' + date.toLocaleTimeString('ar-SA', {hour:'2-digit', minute:'2-digit'});
+}
+
+function showGenericDetail(options) {
+  document.getElementById('vd-title-header').textContent = options.title || 'التفاصيل';
+  
+  const imgEl = document.getElementById('vd-image');
+  if (options.imageUrl) {
+    imgEl.src = options.imageUrl;
+    imgEl.style.display = 'block';
+  } else {
+    imgEl.src = '';
+    imgEl.style.display = 'none';
+  }
+  
+  const gridEl = document.getElementById('vd-grid');
+  gridEl.innerHTML = '';
+  if (options.fields && options.fields.length > 0) {
+    options.fields.forEach(f => {
+      const fieldDiv = document.createElement('div');
+      if (f.fullWidth) {
+        fieldDiv.style.gridColumn = '1 / -1';
+      }
+      fieldDiv.innerHTML = `
+        <div style="font-size:12px; font-weight:700; color:var(--muted); margin-bottom:2px;">${f.label}</div>
+        <div style="font-size:14px; font-weight:600; color:var(--dark);">${f.value || '-'}</div>
+      `;
+      gridEl.appendChild(fieldDiv);
+    });
+    gridEl.style.display = 'grid';
+  } else {
+    gridEl.style.display = 'none';
+  }
+  
+  const bodyContainer = document.getElementById('vd-body-container');
+  const bodyEl = document.getElementById('vd-body');
+  if (options.body) {
+    bodyEl.textContent = options.body;
+    bodyContainer.style.display = 'block';
+  } else {
+    bodyEl.textContent = '';
+    bodyContainer.style.display = 'none';
+  }
+  
+  const editBtn = document.getElementById('vd-edit-btn');
+  if (options.onEdit) {
+    currentEditCallback = options.onEdit;
+    editBtn.style.display = 'inline-block';
+  } else {
+    currentEditCallback = null;
+    editBtn.style.display = 'none';
+  }
+  
+  openModal('viewDetailModal');
+}
+
+function openEditFromDetailView() {
+  closeModal('viewDetailModal');
+  if (currentEditCallback) {
+    currentEditCallback();
+  }
+}
+
+function setPubState(prefix, is_published, published_at) {
+  const picker = document.getElementById(prefix+'-pub-picker');
+  if(!picker) return;
+  picker.querySelectorAll('.pub-opt').forEach(b => b.classList.remove('active'));
+  const wrap = document.getElementById(prefix+'-scheduled-wrap');
+  
+  if (!is_published && published_at && new Date(published_at) > new Date()) {
+    const btn = picker.querySelector('.pub-opt[data-pub="scheduled"]');
+    if (btn) btn.classList.add('active');
+    if (wrap) {
+      wrap.classList.add('show');
+      const input = document.getElementById(prefix+'-scheduled-at');
+      if (input) {
+        const localDate = new Date(published_at);
+        const yyyy = localDate.getFullYear();
+        const mm = String(localDate.getMonth() + 1).padStart(2, '0');
+        const dd = String(localDate.getDate()).padStart(2, '0');
+        const hh = String(localDate.getHours()).padStart(2, '0');
+        const min = String(localDate.getMinutes()).padStart(2, '0');
+        input.value = `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+      }
+    }
+  } else if (!is_published) {
+    const btn = picker.querySelector('.pub-opt[data-pub="draft"]');
+    if (btn) btn.classList.add('active');
+    if (wrap) wrap.classList.remove('show');
+  } else {
+    const btn = picker.querySelector('.pub-opt[data-pub="now"]');
+    if (btn) btn.classList.add('active');
+    if (wrap) wrap.classList.remove('show');
+  }
+}
+
+async function viewNewsDetail(id){
+  // افتح المودال فوراً مع loading
+  document.getElementById('vd-title-header').textContent = 'تفاصيل الخبر';
+  document.getElementById('vd-image').style.display = 'none';
+  document.getElementById('vd-grid').innerHTML = '<div style="padding:20px;text-align:center;color:#9ca3af;grid-column:1/-1">جاري التحميل...</div>';
+  document.getElementById('vd-grid').style.display = 'grid';
+  document.getElementById('vd-body-container').style.display = 'none';
+  document.getElementById('vd-edit-btn').style.display = 'none';
+  openModal('viewDetailModal');
+
+  const {data, error} = await sb.from('news').select('*,categories(name_ar)').eq('id',id).single();
+  if(error || !data) { alert('خطأ في تحميل تفاصيل الخبر'); closeModal('viewDetailModal'); return; }
+
+  const badgeNames = { urgent: 'عاجل', new: 'جديد', important: 'هام', exclusive: 'خاص' };
+  const badgeVal = badgeNames[data.badge] || (data.is_breaking ? 'عاجل' : 'بدون شارة');
+
+  let statusBadgeHtml = '';
+  if (data.is_published) {
+    statusBadgeHtml = '<span class="badge published">منشور</span>';
+  } else if (data.published_at && new Date(data.published_at) > new Date()) {
+    statusBadgeHtml = '<span class="badge" style="background:#eff6ff;color:#1d4ed8">مجدول</span>';
+  } else {
+    statusBadgeHtml = '<span class="badge draft">مسودة</span>';
+  }
+
+  showGenericDetail({
+    title: 'تفاصيل الخبر',
+    imageUrl: data.image_url,
+    fields: [
+      { label: 'العنوان', value: data.title, fullWidth: true },
+      { label: 'التصنيف', value: data.categories?.name_ar || '-' },
+      { label: 'الشارة', value: badgeVal },
+      { label: 'الحالة', value: statusBadgeHtml },
+      { label: 'تاريخ النشر', value: data.published_at ? fmtDateTime(data.published_at) : 'غير محدد' },
+      { label: 'تاريخ الإنشاء', value: fmtDateTime(data.created_at) },
+      { label: 'تاريخ التحديث', value: fmtDateTime(data.updated_at) }
+    ],
+    body: data.body,
+    onEdit: () => editNews(data.id)
+  });
+}
+
+async function viewObitDetail(id){
+  const {data, error} = await sb.from('obituaries').select('*').eq('id',id).single();
+  if(error || !data) { alert('خطأ في تحميل تفاصيل النعي'); return; }
+  
+  let statusBadgeHtml = data.is_published ? '<span class="badge published">منشور</span>' : '<span class="badge draft">مسودة</span>';
+  
+  showGenericDetail({
+    title: 'تفاصيل النعي',
+    imageUrl: data.photo_url,
+    fields: [
+      { label: 'اسم المتوفي', value: data.name, fullWidth: true },
+      { label: 'وقت الدفن', value: data.burial_time || '-' },
+      { label: 'مكان الدفن', value: data.burial_place || '-' },
+      { label: 'مجلس الرجال', value: data.men_council || '-' },
+      { label: 'وقت الرجال', value: data.men_time || '-' },
+      { label: 'مجلس النساء', value: data.women_council || '-' },
+      { label: 'وقت النساء', value: data.women_time || '-' },
+      { label: 'الحالة', value: statusBadgeHtml },
+      { label: 'تاريخ الإنشاء', value: fmtDateTime(data.created_at) }
+    ],
+    onEdit: () => editObit(data.id)
+  });
+}
+
+async function viewMajlisDetail(id){
+  const {data, error} = await sb.from('majalis').select('*,hussaini_centers(name),khateebs(name)').eq('id',id).single();
+  if(error || !data) { alert('خطأ في تحميل تفاصيل المأتم'); return; }
+  
+  let statusBadgeHtml = data.is_published ? '<span class="badge published">منشور</span>' : '<span class="badge draft">مسودة</span>';
+  
+  showGenericDetail({
+    title: 'تفاصيل المأتم / المجلس',
+    fields: [
+      { label: 'المجلس', value: data.hussaini_centers?.name || data.name || '-', fullWidth: true },
+      { label: 'الخطيب', value: data.khateebs?.name || data.khateeb || '-' },
+      { label: 'الوقت', value: data.time_description || '-' },
+      { label: 'المدة', value: data.duration || '-' },
+      { label: 'تاريخ البدء', value: data.start_date || '-' },
+      { label: 'تاريخ الانتهاء', value: data.end_date || '-' },
+      { label: 'الحالة', value: statusBadgeHtml },
+      { label: 'تاريخ الإنشاء', value: fmtDateTime(data.created_at) }
+    ],
+    onEdit: () => editMajlis(data.id)
+  });
+}
+
+async function viewEventDetail(id){
+  // افتح المودال فوراً
+  document.getElementById('vd-title-header').textContent = 'تفاصيل المناسبة';
+  document.getElementById('vd-image').style.display = 'none';
+  document.getElementById('vd-grid').innerHTML = '<div style="padding:20px;text-align:center;color:#9ca3af;grid-column:1/-1">جاري التحميل...</div>';
+  document.getElementById('vd-grid').style.display = 'grid';
+  document.getElementById('vd-body-container').style.display = 'none';
+  document.getElementById('vd-edit-btn').style.display = 'none';
+  openModal('viewDetailModal');
+
+  const {data, error} = await sb.from('events').select('*').eq('id',id).single();
+  if(error || !data) { alert('خطأ في تحميل تفاصيل المناسبة'); closeModal('viewDetailModal'); return; }
+
+  const typesArr = getEventTypes();
+  const types = Object.fromEntries(typesArr.map(t=>[t.key,t.label]));
+  let statusBadgeHtml = data.is_published ? '<span class="badge published">منشور</span>' : '<span class="badge draft">مسودة</span>';
+
+  showGenericDetail({
+    title: 'تفاصيل المناسبة',
+    imageUrl: data.image_url,
+    fields: [
+      { label: 'العنوان', value: data.title, fullWidth: true },
+      { label: 'النوع', value: types[data.type] || data.type },
+      { label: 'التاريخ', value: data.event_date ? fmtDateTime(data.event_date) : '-' },
+      { label: 'المكان', value: data.location || '-' },
+      { label: 'الحالة', value: statusBadgeHtml },
+      { label: 'تاريخ الإنشاء', value: fmtDateTime(data.created_at) }
+    ],
+    body: data.description,
+    onEdit: () => editEvent(data.id)
+  });
+}
+
+async function viewServiceDetail(id){
+  const {data, error} = await sb.from('services').select('*').eq('id',id).single();
+  if(error || !data) { alert('خطأ في تحميل تفاصيل الخدمة'); return; }
+  
+  let statusBadgeHtml = data.is_active ? '<span class="badge published">فعّال</span>' : '<span class="badge draft">معطّل</span>';
+  
+  showGenericDetail({
+    title: 'تفاصيل الخدمة',
+    fields: [
+      { label: 'اسم الخدمة', value: data.name, fullWidth: true },
+      { label: 'رقم الهاتف', value: data.phone || '-' },
+      { label: 'الحالة', value: statusBadgeHtml },
+      { label: 'تاريخ الإنشاء', value: fmtDateTime(data.created_at) }
+    ],
+    body: data.description,
+    onEdit: () => editService(data.id)
+  });
+}
+
+async function viewCenterDetail(id){
+  const {data, error} = await sb.from('hussaini_centers').select('*').eq('id',id).single();
+  if(error || !data) { alert('خطأ في تحميل تفاصيل المجلس'); return; }
+  
+  let statusBadgeHtml = data.is_active ? '<span class="badge published">فعّال</span>' : '<span class="badge draft">معطّل</span>';
+  
+  showGenericDetail({
+    title: 'تفاصيل المجلس',
+    fields: [
+      { label: 'اسم المجلس', value: data.name, fullWidth: true },
+      { label: 'المكان', value: data.location || '-' },
+      { label: 'الحالة', value: statusBadgeHtml },
+      { label: 'تاريخ الإنشاء', value: fmtDateTime(data.created_at) }
+    ],
+    onEdit: () => editCenter(data.id)
+  });
+}
+
+async function viewKhateebDetail(id){
+  const {data, error} = await sb.from('khateebs').select('*').eq('id',id).single();
+  if(error || !data) { alert('خطأ في تحميل تفاصيل الخطيب'); return; }
+  
+  let statusBadgeHtml = data.is_active ? '<span class="badge published">فعّال</span>' : '<span class="badge draft">معطّل</span>';
+  
+  showGenericDetail({
+    title: 'تفاصيل الخطيب',
+    imageUrl: data.photo_url,
+    fields: [
+      { label: 'الاسم', value: data.name, fullWidth: true },
+      { label: 'نبذة', value: data.bio || '-', fullWidth: true },
+      { label: 'الحالة', value: statusBadgeHtml },
+      { label: 'تاريخ الإنشاء', value: fmtDateTime(data.created_at) }
+    ],
+    onEdit: () => editKhateeb(data.id)
+  });
+}
+
+async function viewAdDetail(id){
+  const {data, error} = await sb.from('ads').select('*').eq('id',id).single();
+  if(error || !data) { alert('خطأ في تحميل تفاصيل الإعلان'); return; }
+  
+  const expired = data.end_date && new Date(data.end_date) < new Date();
+  let statusBadgeHtml = '';
+  if (expired) {
+    statusBadgeHtml = '<span class="badge breaking">منتهي</span>';
+  } else if (data.is_active) {
+    statusBadgeHtml = '<span class="badge published">نشط</span>';
+  } else {
+    statusBadgeHtml = '<span class="badge draft">متوقف</span>';
+  }
+  
+  showGenericDetail({
+    title: 'تفاصيل الإعلان',
+    imageUrl: data.image_url,
+    fields: [
+      { label: 'عنوان الإعلان', value: data.title, fullWidth: true },
+      { label: 'رابط الإعلان', value: data.link_url ? `<a href="${data.link_url}" target="_blank" style="color:var(--green);text-decoration:underline;">${data.link_url}</a>` : '-', fullWidth: true },
+      { label: 'تاريخ البدء', value: data.start_date || '-' },
+      { label: 'تاريخ الانتهاء', value: data.end_date || '-' },
+      { label: 'عدد المشاهدات', value: data.views || 0 },
+      { label: 'عدد النقرات', value: data.clicks || 0 },
+      { label: 'الحالة', value: statusBadgeHtml },
+      { label: 'تاريخ الإنشاء', value: fmtDateTime(data.created_at) }
+    ],
+    onEdit: () => editAd(data.id)
+  });
+}
+
+function openNewsModal(){ editingId=null; document.getElementById('newsModalTitle').textContent='إضافة خبر'; clearForm(['n-title','n-body','n-image']); setBadge(''); switchImgTab('n', 'upload'); document.getElementById('n-preview').style.display='none'; resetPub('n'); openModal('newsModal'); }
+
+async function editNews(id){
+  const {data} = await sb.from('news').select('*').eq('id',id).single();
+  editingId = id;
+  document.getElementById('newsModalTitle').textContent='تعديل الخبر';
+  document.getElementById('n-title').value = data.title||'';
+  document.getElementById('n-body').value = data.body||'';
+  document.getElementById('n-image').value = data.image_url||'';
+  document.getElementById('n-category').value = data.category_id||'';
+  setBadge(data.badge||( data.is_breaking?'urgent':'' ));
+  // show as url tab if existing image
+  if(data.image_url){ switchImgTab('n', 'url'); } else { switchImgTab('n', 'upload'); document.getElementById('n-preview').style.display='none'; }
+  openModal('newsModal');
+}
+
+async function saveNews(){
+  const title = document.getElementById('n-title').value.trim();
+  if(!title){ alert('العنوان مطلوب'); return; }
+  const cat = document.getElementById('n-category').value;
+  if(!cat){ alert('التصنيف مطلوب'); return; }
+  const badge = getSelectedBadge();
+  const pub = getPubState('n');
+  const basePayload = {
+    title,
+    body: document.getElementById('n-body').value,
+    image_url: document.getElementById('n-image').value,
+    category_id: cat,
+    is_breaking: badge === 'urgent',
+    badge: badge || null,
+  };
+  if(editingId){
+    // عند التعديل: لا نغير is_published ولا published_at، فقط نحدّث updated_at
+    const editPayload = { ...basePayload, updated_at: new Date().toISOString() };
+    await sb.from('news').update(editPayload).eq('id',editingId);
+    await logAction('update','news',editingId,`تعديل خبر: ${title}`);
+  } else {
+    const insertPayload = { ...basePayload, ...pub };
+    const {data:nd} = await sb.from('news').insert(insertPayload).select().single();
+    await logAction('insert','news',nd?.id,`اضافة خبر: ${title}`);
+  }
+  closeModal('newsModal'); loadNews(); if(document.getElementById('page-dashboard').classList.contains('active')) loadDashboard();
+}
+
+// ===== OBITUARIES =====
+async function loadObits(){
+  const {data} = await sb.from('obituaries').select('*').order('created_at',{ascending:false});
+  const tbody = document.getElementById('obit-list');
+  if(!data?.length){ tbody.innerHTML='<tr><td colspan=\"7\"><div class=\"empty\"><p>لا توجد وفيات</p></div></td></tr>'; return; }
+  tbody.innerHTML = data.map(r=>`
+    <tr>
+      <td data-label="الاسم" style="display:flex;align-items:center;gap:8px">${r.photo_url?`<img class="thumb-sm" src="${r.photo_url}">`:`<div class="thumb-sm" style="display:flex;align-items:center;justify-content:center;color:var(--muted);background:#f1f5f9;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>`} <a href="#" onclick="viewObitDetail('${r.id}'); return false;" style="color:var(--green); text-decoration:none; font-weight:700;">${r.name}</a></td>
+      <td data-label="وقت الدفن">${r.burial_time||'-'}</td>
+      <td data-label="مكان الدفن">${r.burial_place||'-'}</td>
+      <td data-label="مجلس الرجال">${r.men_council||'-'}</td>
+      <td data-label="الحالة"><span class="badge ${r.is_published?'published':'draft'}">${r.is_published?'منشور':'مسودة'}</span></td>
+      <td data-label="تاريخ النشن">${fmtDate(r.created_at)}</td>
+      <td data-label="إجراءات"><div class="action-btns">
+        <button class="btn-pub" onclick="togglePublish('obituaries','is_published','${r.id}',${r.is_published})">${r.is_published?'إلغاء':'نشر'}</button>
+        <button class="btn-edit" onclick="editObit('${r.id}')">تعديل</button>
+        <button class="btn-del" onclick="deleteRow('obituaries','${r.id}',loadObits)">حذف</button>
+      </div></td>
+    </tr>`).join('');
+}
+
+function openObitModal(){
+  editingId=null;
+  const titleEl=document.getElementById('obitModalTitle');
+  if(titleEl) titleEl.textContent='إضافة نعي';
+  clearForm(['o-name','o-burial-time','o-burial-place','o-men-council','o-men-time','o-women-council','o-women-time','o-photo']);
+  switchImgTab('o', 'upload');
+  document.getElementById('o-preview').style.display='none';
+  resetPub('o');
+  openModal('obitModal');
+}
+
+async function editObit(id){
+  const {data} = await sb.from('obituaries').select('*').eq('id',id).single();
+  editingId = id;
+  const titleEl = document.getElementById('obitModalTitle');
+  if(titleEl) titleEl.textContent = 'تعديل النعي';
+  document.getElementById('o-name').value = data.name || '';
+  document.getElementById('o-burial-time').value = data.burial_time || '';
+  document.getElementById('o-burial-place').value = data.burial_place || '';
+  document.getElementById('o-men-council').value = data.men_council || '';
+  document.getElementById('o-men-time').value = data.men_time || '';
+  document.getElementById('o-women-council').value = data.women_council || '';
+  document.getElementById('o-women-time').value = data.women_time || '';
+  document.getElementById('o-photo').value = data.photo_url || '';
+  if(data.photo_url){
+    switchImgTab('o', 'url');
+  } else {
+    switchImgTab('o', 'upload');
+    document.getElementById('o-preview').style.display='none';
+  }
+  setPubState('o', data.is_published, data.published_at);
+  openModal('obitModal');
+}
+
+async function saveObit(){
+  const name = document.getElementById('o-name').value.trim();
+  if(!name){ alert('الاسم مطلوب'); return; }
+  const pub = getPubState('o');
+  const payload = {
+    name,
+    burial_time: document.getElementById('o-burial-time').value,
+    burial_place: document.getElementById('o-burial-place').value,
+    men_council: document.getElementById('o-men-council').value,
+    men_time: document.getElementById('o-men-time').value,
+    women_council: document.getElementById('o-women-council').value,
+    women_time: document.getElementById('o-women-time').value,
+    photo_url: document.getElementById('o-photo').value,
+    is_published: pub.is_published
+  };
+  if(editingId){
+    await sb.from('obituaries').update(payload).eq('id',editingId);
+    await logAction('update','obituaries',editingId,`تعديل نعي: ${name}`);
+  } else {
+    const {data:od} = await sb.from('obituaries').insert(payload).select().single();
+    await logAction('insert','obituaries',od?.id,`اضافة نعي: ${name}`);
+  }
+  closeModal('obitModal'); loadObits();
+}
+
+// ===== MAJALIS =====
+async function loadMajalis(){
+  const {data} = await sb.from('majalis').select('*,hussaini_centers(name),khateebs(name)').order('created_at',{ascending:false});
+  const tbody = document.getElementById('majalis-list');
+  if(!data?.length){ tbody.innerHTML='<tr><td colspan="6"><div class="empty"><p>لا توجد مآتم</p></div></td></tr>'; return; }
+  tbody.innerHTML = data.map(r=>`
+    <tr>
+      <td data-label="المجلس"><a href="#" onclick="viewMajlisDetail('${r.id}'); return false;" style="color:var(--green); text-decoration:none; font-weight:700;">${r.hussaini_centers?.name||r.name||'-'}</a></td>
+      <td data-label="الخطيب">${r.khateebs?.name||r.khateeb||'-'}</td>
+      <td data-label="الوقت">${r.time_description||'-'}</td>
+      <td data-label="المدة">${r.duration||'-'}</td>
+      <td data-label="الحالة"><span class="badge ${r.is_published?'published':'draft'}">${r.is_published?'منشور':'مسودة'}</span></td>
+      <td data-label="تاريخ النشر">${fmtDate(r.created_at)}</td>
+      <td data-label="إجراءات"><div class="action-btns">
+        <button class="btn-pub" onclick="togglePublish('majalis','is_published','${r.id}',${r.is_published})">${r.is_published?'إلغاء':'نشر'}</button>
+        <button class="btn-edit" onclick="editMajlis('${r.id}')">تعديل</button>
+        <button class="btn-del" onclick="deleteRow('majalis','${r.id}',loadMajalis)">حذف</button>
+      </div></td>
+    </tr>`).join('');
+}
+
+function selectCouncilType(type, btn) {
+  document.querySelectorAll('#m-council-picker .pub-opt').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function openMajlisModal(){ editingId=null; const titleEl=document.getElementById('majlisModalTitle'); if(titleEl) titleEl.textContent='إضافة مأتم'; clearForm(['m-time','m-duration','m-start','m-end']); document.getElementById('m-center').value=''; document.getElementById('m-khateeb-id').value=''; resetPub('m'); selectCouncilType('men', document.querySelector('#m-council-picker .pub-opt[data-council="men"]')); openModal('majlisModal'); }
+
+async function editMajlis(id){
+  const {data} = await sb.from('majalis').select('*').eq('id',id).single();
+  editingId = id;
+  const titleEl = document.getElementById('majlisModalTitle');
+  if(titleEl) titleEl.textContent = 'تعديل المأتم';
+  document.getElementById('m-center').value = data.center_id || '';
+  document.getElementById('m-khateeb-id').value = data.khateeb_id || '';
+  document.getElementById('m-time').value = data.time_description || '';
+  document.getElementById('m-duration').value = data.duration || '';
+  document.getElementById('m-start').value = data.start_date || '';
+  document.getElementById('m-end').value = data.end_date || '';
+  const cType = data.council_type || 'men';
+  const cBtn = document.querySelector(`#m-council-picker .pub-opt[data-council="${cType}"]`);
+  if(cBtn) selectCouncilType(cType, cBtn);
+  setPubState('m', data.is_published, data.published_at);
+  openModal('majlisModal');
+}
+
+async function saveMajlis(){
+  const centerId = document.getElementById('m-center').value;
+  const khateebId = document.getElementById('m-khateeb-id').value;
+  if(!centerId){ alert('اختر المجلس'); return; }
+  if(!khateebId){ alert('اختر الخطيب'); return; }
+  const center = centers.find(c=>c.id===centerId);
+  const pub = getPubState('m');
+  const payload = {
+    name: center?.name || '',
+    center_id: centerId,
+    khateeb_id: khateebId,
+    time_description: document.getElementById('m-time').value,
+    duration: document.getElementById('m-duration').value,
+    start_date: document.getElementById('m-start').value || null,
+    end_date: document.getElementById('m-end').value || null,
+    council_type: document.querySelector('#m-council-picker .pub-opt.active')?.dataset.council || 'men',
+    is_published: pub.is_published
+  };
+  if(editingId){
+    await sb.from('majalis').update(payload).eq('id',editingId);
+    await logAction('update','majalis',editingId,`تعديل مأتم: ${center?.name||''}`);
+  } else {
+    const {data:md} = await sb.from('majalis').insert(payload).select().single();
+    await logAction('insert','majalis',md?.id,`اضافة مأتم: ${center?.name||''}`);
+  }
+  closeModal('majlisModal'); loadMajalis();
+}
+
+// ===== EVENTS =====
+async function loadEvents(){
+  const {data} = await sb.from('events').select('*').order('created_at',{ascending:false});
+  const typesArr = getEventTypes();
+  const types = Object.fromEntries(typesArr.map(t=>[t.key,t.label]));
+  const tbody = document.getElementById('events-list');
+  if(!data?.length){ tbody.innerHTML='<tr><td colspan="6"><div class="empty"><p>لا توجد مناسبات</p></div></td></tr>'; return; }
+  tbody.innerHTML = data.map(r=>`
+    <tr>
+      <td data-label="الصورة">${r.image_url ? `<img src="${r.image_url}" class="thumb-sm" alt="">` : '<div class="thumb-sm" style="background:#f1f5f9"></div>'}</td>
+      <td data-label="العنوان"><a href="#" onclick="viewEventDetail('${r.id}'); return false;" style="color:var(--green); text-decoration:none; font-weight:700;">${r.title}</a></td>
+      <td data-label="النوع">${types[r.type]||r.type}</td>
+      <td data-label="التاريخ">${r.event_date?fmtDate(r.event_date):'-'}</td>
+      <td data-label="المكان">${r.location||'-'}</td>
+      <td data-label="الحالة"><span class="badge ${r.is_published?'published':'draft'}">${r.is_published?'منشور':'مسودة'}</span></td>
+      <td data-label="تاريخ النشر">${fmtDate(r.created_at)}</td>
+      <td data-label="إجراءات"><div class="action-btns">
+        <button class="btn-pub" onclick="togglePublish('events','is_published','${r.id}',${r.is_published})">${r.is_published?'إلغاء':'نشر'}</button>
+        <button class="btn-edit" onclick="editEvent('${r.id}')">تعديل</button>
+        <button class="btn-del" onclick="deleteRow('events','${r.id}',loadEvents)">حذف</button>
+      </div></td>
+    </tr>`).join('');
+}
+
+function openEventModal(){
+  editingId=null;
+  const titleEl=document.getElementById('eventModalTitle');
+  if(titleEl) titleEl.textContent='إضافة مناسبة';
+  clearForm(['e-title','e-location','e-desc','e-image','e-date']);
+  document.getElementById('e-preview').style.display = 'none';
+  resetPub('e');
+  // refresh types from storage
+  const sel = document.getElementById('e-type');
+  if(sel){ const types=getEventTypes(); sel.innerHTML=types.map(t=>`<option value="${t.key}">${t.label}</option>`).join(''); }
+  openModal('eventModal');
+}
+
+async function editEvent(id){
+  const {data} = await sb.from('events').select('*').eq('id',id).single();
+  editingId = id;
+  const titleEl = document.getElementById('eventModalTitle');
+  if(titleEl) titleEl.textContent = 'تعديل المناسبة';
+  document.getElementById('e-title').value = data.title || '';
+  document.getElementById('e-type').value = data.type || 'wedding';
+  if(data.event_date){
+    const d = new Date(data.event_date);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const dd = String(d.getDate()).padStart(2,'0');
+    const hh = String(d.getHours()).padStart(2,'0');
+    const min = String(d.getMinutes()).padStart(2,'0');
+    document.getElementById('e-date').value = `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+  } else {
+    document.getElementById('e-date').value = '';
+  }
+  document.getElementById('e-location').value = data.location || '';
+  document.getElementById('e-desc').value = data.description || '';
+  document.getElementById('e-image').value = data.image_url || '';
+  const ePrev = document.getElementById('e-preview');
+  if(data.image_url){ ePrev.src = data.image_url; ePrev.style.display = 'block'; } else { ePrev.style.display = 'none'; }
+  setPubState('e', data.is_published, data.published_at);
+  openModal('eventModal');
+}
+
+async function saveEvent(){
+  const title = document.getElementById('e-title').value.trim();
+  if(!title){ alert('العنوان مطلوب'); return; }
+  const pub = getPubState('e');
+  const payload = {
+    title,
+    type: document.getElementById('e-type').value,
+    event_date: document.getElementById('e-date').value || null,
+    location: document.getElementById('e-location').value,
+    description: document.getElementById('e-desc').value,
+    image_url: document.getElementById('e-image').value,
+    is_published: pub.is_published
+  };
+  if(editingId){
+    await sb.from('events').update(payload).eq('id',editingId);
+    await logAction('update','events',editingId,`تعديل مناسبة: ${title}`);
+  } else {
+    const {data:evd} = await sb.from('events').insert(payload).select().single();
+    await logAction('insert','events',evd?.id,`اضافة مناسبة: ${title}`);
+  }
+  closeModal('eventModal'); loadEvents();
+}
+
+// ===== SERVICES =====
+async function loadServices(){
+  const {data} = await sb.from('services').select('*').order('sort_order');
+  const tbody = document.getElementById('services-list');
+  if(!data?.length){ tbody.innerHTML='<tr><td colspan="4"><div class="empty"><p>لا توجد خدمات</p></div></td></tr>'; return; }
+  tbody.innerHTML = data.map(r=>`
+    <tr>
+      <td data-label="الاسم"><a href="#" onclick="viewServiceDetail('${r.id}'); return false;" style="color:var(--green); text-decoration:none; font-weight:700;">${r.name}</a></td>
+      <td data-label="الرقم">${r.phone||'-'}</td>
+      <td data-label="الحالة"><span class="badge ${r.is_active?'published':'draft'}">${r.is_active?'فعّال':'معطّل'}</span></td>
+      <td data-label="تاريخ النشر">${fmtDate(r.created_at)}</td>
+      <td data-label="إجراءات"><div class="action-btns">
+        <button class="btn-pub" onclick="togglePublish('services','is_active','${r.id}',${r.is_active})">${r.is_active?'تعطيل':'تفعيل'}</button>
+        <button class="btn-edit" onclick="editService('${r.id}')">تعديل</button>
+        <button class="btn-del" onclick="deleteRow('services','${r.id}',loadServices)">حذف</button>
+      </div></td>
+    </tr>`).join('');
+}
+
+function openServiceModal(){ editingId=null; const titleEl=document.getElementById('serviceModalTitle'); if(titleEl) titleEl.textContent='إضافة خدمة'; clearForm(['s-name','s-phone','s-desc']); resetPub('s'); openModal('serviceModal'); }
+
+async function editService(id){
+  const {data} = await sb.from('services').select('*').eq('id',id).single();
+  editingId = id;
+  const titleEl = document.getElementById('serviceModalTitle');
+  if(titleEl) titleEl.textContent = 'تعديل الخدمة';
+  document.getElementById('s-name').value = data.name || '';
+  document.getElementById('s-phone').value = data.phone || '';
+  document.getElementById('s-desc').value = data.description || '';
+  const picker = document.getElementById('s-pub-picker');
+  if(picker){
+    picker.querySelectorAll('.pub-opt').forEach(b => b.classList.remove('active'));
+    const btn = picker.querySelector(`.pub-opt[data-pub="${data.is_active ? 'now' : 'draft'}"]`);
+    if(btn) btn.classList.add('active');
+  }
+  openModal('serviceModal');
+}
+
+async function saveService(){
+  const name = document.getElementById('s-name').value.trim();
+  if(!name){ alert('الاسم مطلوب'); return; }
+  const btn = document.querySelector('#s-pub-picker .pub-opt.active');
+  const isActive = btn ? btn.dataset.pub === 'now' : true;
+  const payload = {
+    name,
+    phone: document.getElementById('s-phone').value,
+    description: document.getElementById('s-desc').value,
+    is_active: isActive,
+  };
+  if(editingId){
+    await sb.from('services').update(payload).eq('id',editingId);
+    await logAction('update','services',editingId,`تعديل خدمة: ${name}`);
+  } else {
+    const {data:sd} = await sb.from('services').insert(payload).select().single();
+    await logAction('insert','services',sd?.id,`اضافة خدمة: ${name}`);
+  }
+  closeModal('serviceModal'); loadServices();
+}
+
+// ===== CENTERS =====
+async function loadCentersData(){
+  const {data} = await sb.from('hussaini_centers').select('*').eq('is_active',true).order('name');
+  centers = data || [];
+  const sel = document.getElementById('m-center');
+  if(sel) sel.innerHTML = '<option value="">اختر المجلس</option>' + centers.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+}
+
+async function loadCenters(){
+  const {data} = await sb.from('hussaini_centers').select('*').order('created_at',{ascending:false});
+  const tbody = document.getElementById('centers-list');
+  if(!data?.length){ tbody.innerHTML='<tr><td colspan="4"><div class="empty"><p>لا توجد مجالس</p></div></td></tr>'; return; }
+  tbody.innerHTML = data.map(r=>`
+    <tr>
+      <td data-label="اسم المجلس"><a href="#" onclick="viewCenterDetail('${r.id}'); return false;" style="color:var(--green); text-decoration:none; font-weight:700;">${r.name}</a></td>
+      <td data-label="المكان">${r.location||'-'}</td>
+      <td data-label="الحالة"><span class="badge ${r.is_active?'published':'draft'}">${r.is_active?'فعّال':'معطّل'}</span></td>
+      <td data-label="تاريخ النشر">${fmtDate(r.created_at)}</td>
+      <td data-label="إجراءات"><div class="action-btns">
+        <button class="btn-edit" onclick="editCenter('${r.id}')">تعديل</button>
+        <button class="btn-del" onclick="deleteRow('hussaini_centers','${r.id}',loadCenters)">حذف</button>
+      </div></td>
+    </tr>`).join('');
+}
+
+function openCenterModal(){ editingId=null; document.getElementById('centerModalTitle').textContent='إضافة مجلس'; clearForm(['c-name','c-location']); resetPub('c'); openModal('centerModal'); }
+
+async function editCenter(id){
+  const {data} = await sb.from('hussaini_centers').select('*').eq('id',id).single();
+  editingId=id;
+  document.getElementById('centerModalTitle').textContent='تعديل المجلس';
+  document.getElementById('c-name').value=data.name||'';
+  document.getElementById('c-location').value=data.location||'';
+  const btn = document.querySelector(`#c-pub-picker .pub-opt[data-pub="${data.is_active?'now':'draft'}"]`);
+  if(btn){ document.querySelectorAll('#c-pub-picker .pub-opt').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); }
+  openModal('centerModal');
+}
+
+async function saveCenter(){
+  const name = document.getElementById('c-name').value.trim();
+  if(!name){ alert('الاسم مطلوب'); return; }
+  const btn = document.querySelector('#c-pub-picker .pub-opt.active');
+  const payload = { name, location: document.getElementById('c-location').value, is_active: btn?.dataset.pub==='now' };
+  if(editingId){
+    await sb.from('hussaini_centers').update(payload).eq('id',editingId);
+    await logAction('update','hussaini_centers',editingId,`تعديل مجلس: ${name}`);
+  } else {
+    const {data:cd} = await sb.from('hussaini_centers').insert(payload).select().single();
+    await logAction('insert','hussaini_centers',cd?.id,`اضافة مجلس: ${name}`);
+  }
+  closeModal('centerModal'); loadCenters(); loadCentersData();
+}
+
+// ===== KHATEEBS =====
+async function loadKhateebsData(){
+  const {data} = await sb.from('khateebs').select('*').eq('is_active',true).order('name');
+  khateebs = data || [];
+  const sel = document.getElementById('m-khateeb-id');
+  if(sel) sel.innerHTML = '<option value="">اختر الخطيب</option>' + khateebs.map(k=>`<option value="${k.id}">${k.name}</option>`).join('');
+}
+
+async function loadKhateebs(){
+  const {data} = await sb.from('khateebs').select('*').order('created_at',{ascending:false});
+  const tbody = document.getElementById('khateebs-list');
+  if(!data?.length){ tbody.innerHTML='<tr><td colspan="4"><div class="empty"><p>لا يوجد خطباء</p></div></td></tr>'; return; }
+  tbody.innerHTML = data.map(r=>`
+    <tr>
+      <td data-label="الاسم"><a href="#" onclick="viewKhateebDetail('${r.id}'); return false;" style="color:var(--green); text-decoration:none; font-weight:700;">${r.name}</a></td>
+      <td data-label="الصورة">${r.photo_url?`<img class="thumb-sm" src="${r.photo_url}" style="border-radius:50%">`:'-'}</td>
+      <td data-label="الحالة"><span class="badge ${r.is_active?'published':'draft'}">${r.is_active?'فعّال':'معطّل'}</span></td>
+      <td data-label="تاريخ النشر">${fmtDate(r.created_at)}</td>
+      <td data-label="إجراءات"><div class="action-btns">
+        <button class="btn-edit" onclick="editKhateeb('${r.id}')">تعديل</button>
+        <button class="btn-del" onclick="deleteRow('khateebs','${r.id}',loadKhateebs)">حذف</button>
+      </div></td>
+    </tr>`).join('');
+}
+
+function openKhateebModal(){ editingId=null; document.getElementById('khateebModalTitle').textContent='إضافة خطيب'; clearForm(['kh-name','kh-photo','kh-bio']); resetPub('kh'); openModal('khateebModal'); }
+
+async function editKhateeb(id){
+  const {data} = await sb.from('khateebs').select('*').eq('id',id).single();
+  editingId=id;
+  document.getElementById('khateebModalTitle').textContent='تعديل الخطيب';
+  document.getElementById('kh-name').value=data.name||'';
+  document.getElementById('kh-photo').value=data.photo_url||'';
+  document.getElementById('kh-bio').value=data.bio||'';
+  const btn = document.querySelector(`#kh-pub-picker .pub-opt[data-pub="${data.is_active?'now':'draft'}"]`);
+  if(btn){ document.querySelectorAll('#kh-pub-picker .pub-opt').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); }
+  openModal('khateebModal');
+}
+
+async function saveKhateeb(){
+  const name = document.getElementById('kh-name').value.trim();
+  if(!name){ alert('الاسم مطلوب'); return; }
+  const btn = document.querySelector('#kh-pub-picker .pub-opt.active');
+  const payload = { name, photo_url: document.getElementById('kh-photo').value, bio: document.getElementById('kh-bio').value, is_active: btn?.dataset.pub==='now' };
+  if(editingId){
+    await sb.from('khateebs').update(payload).eq('id',editingId);
+    await logAction('update','khateebs',editingId,`تعديل خطيب: ${name}`);
+  } else {
+    const {data:khd} = await sb.from('khateebs').insert(payload).select().single();
+    await logAction('insert','khateebs',khd?.id,`اضافة خطيب: ${name}`);
+  }
+  closeModal('khateebModal'); loadKhateebs(); loadKhateebsData();
+}
+
+
+// ===== RBAC =====
+const ROLES = {super_admin:'مدير عام',admin:'مدير',editor:'محرر',reporter:'مراسل',moderator:'مشرف',section_editor:'محرر قسم'};
+const SECTIONS = {news:'الاخبار',obituaries:'الوفيات',majalis:'المآتم',events:'المناسبات',services:'الخدمات'};
+let currentUserRole = null;
+let editingUserId = null;
+
+function can(permission){
+  const map = {
+    super_admin:['all'],
+    admin:['manage_content','approve_news','manage_categories','view_audit'],
+    editor:['manage_content','upload_images'],
+    reporter:['add_news'],
+    moderator:['manage_comments','view_audit'],
+    section_editor:['manage_content']
+  };
+  if(!currentUserRole) return false;
+  const p = map[currentUserRole]||[];
+  return p.includes('all')||p.includes(permission);
+}
+
+async function logAction(action, tableName, recordId, description){
+  try {
+    await sb.from('audit_log').insert({
+      user_id: currentUserId,
+      user_name: currentUserName,
+      action,
+      table_name: tableName,
+      record_id: recordId||null,
+      description
+    });
+  } catch(e){ /* صامت تماماً */ }
+}
+
+async function loadCurrentUserRole(){
+  const {data:{user}} = await sb.auth.getUser();
+  if(!user) return;
+  currentUserId = user.id;
+  const {data} = await sb.from('admins').select('role,name').eq('id',user.id).single();
+  currentUserRole = data?.role || null;
+  currentUserName = data?.name || user.email;
+}
+
+function applyRoleUI(){
+  document.querySelectorAll('[data-page="users"]').forEach(el=>{
+    el.style.display = can('all') ? '' : 'none';
+  });
+  document.querySelectorAll('[data-page="audit-log"]').forEach(el=>{
+    el.style.display = (can('all')||can('view_audit')) ? '' : 'none';
+  });
+}
+
+async function loadUsers(){
+  const {data:adminsData} = await sb.from('admins').select('*');
+  const tbody = document.getElementById('users-list');
+  if(!adminsData?.length){ tbody.innerHTML='<tr><td colspan="5"><div class="empty"><p>لا يوجد مستخدمون</p></div></td></tr>'; return; }
+  tbody.innerHTML = adminsData.map(r=>{
+    const canEdit = currentUserRole==='super_admin';
+    return `<tr>
+      <td data-label="الاسم"><strong>${r.name||'-'}</strong></td>
+      <td data-label="البريد">${r.email||'-'}</td>
+      <td data-label="الصلاحية"><span class="badge" style="background:#e0f2fe;color:#0369a1">${ROLES[r.role]||r.role}</span></td>
+      <td data-label="القسم">${r.section?SECTIONS[r.section]||r.section:'-'}</td>
+      <td data-label="إجراءات"><div class="action-btns">
+        ${canEdit?`<button class="btn-edit" onclick="editUser('${r.id}','${r.name||''}','${r.email||''}','${r.role}','${r.section||''}')">تعديل</button>
+        <button class="btn-del" onclick="deleteUser('${r.id}')">حذف</button>`:'<span style="color:var(--muted);font-size:12px">—</span>'}
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+function toggleSectionField(){
+  const role = document.getElementById('u-role').value;
+  document.getElementById('u-section-wrap').style.display = role==='section_editor'?'block':'none';
+}
+
+function openUserModal(){
+  if(currentUserRole!=='super_admin'){ alert('فقط المدير العام يمكنه إضافة مستخدمين'); return; }
+  editingUserId=null;
+  document.getElementById('userModalTitle').textContent='إضافة مستخدم';
+  document.getElementById('u-password-wrap').style.display='block';
+  clearForm(['u-name','u-email','u-password']);
+  document.getElementById('u-role').value='editor';
+  document.getElementById('u-section-wrap').style.display='none';
+  openModal('userModal');
+}
+
+function editUser(id,name,email,role,section){
+  if(currentUserRole!=='super_admin'){ alert('فقط المدير العام يمكنه تعديل المستخدمين'); return; }
+  editingUserId=id;
+  document.getElementById('userModalTitle').textContent='تعديل المستخدم';
+  document.getElementById('u-password-wrap').style.display='none';
+  document.getElementById('u-name').value=name;
+  document.getElementById('u-email').value=email;
+  document.getElementById('u-role').value=role;
+  document.getElementById('u-section').value=section||'news';
+  document.getElementById('u-section-wrap').style.display=role==='section_editor'?'block':'none';
+  openModal('userModal');
+}
+
+async function saveUser(){
+  const name = document.getElementById('u-name').value.trim();
+  const email = document.getElementById('u-email').value.trim();
+  const role = document.getElementById('u-role').value;
+  const section = role==='section_editor'?document.getElementById('u-section').value:null;
+  if(!name){ alert('الاسم مطلوب'); return; }
+  if(!email){ alert('البريد الإلكتروني مطلوب'); return; }
+
+  if(editingUserId){
+    await sb.from('admins').update({name,email,role,section}).eq('id',editingUserId);
+    await logAction('update','admins',editingUserId,`تعديل مستخدم: ${name}`);
+  } else {
+    const pass = document.getElementById('u-password').value;
+    if(!pass||pass.length<8){ alert('كلمة السر يجب أن تكون 8 أحرف على الأقل'); return; }
+    // Create auth user via service role
+    const res = await fetch('https://vjkqtcggjkxuskmavolc.supabase.co/auth/v1/admin/users', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqa3F0Y2dnamt4dXNrbWF2b2xjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTI3OTQ0MCwiZXhwIjoyMDk2ODU1NDQwfQ.G9wst1xhT2pldJwJxEniUQ8eFmAAP8EnIwS-VbdBxok','Authorization':'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqa3F0Y2dnamt4dXNrbWF2b2xjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTI3OTQ0MCwiZXhwIjoyMDk2ODU1NDQwfQ.G9wst1xhT2pldJwJxEniUQ8eFmAAP8EnIwS-VbdBxok'},
+      body:JSON.stringify({email,password:pass,email_confirm:true})
+    });
+    const json = await res.json();
+    if(!json.id){ alert('خطأ في انشاء المستخدم: '+(json.message||JSON.stringify(json))); return; }
+    await sb.from('admins').insert({id:json.id,name,email,role,section});
+    await logAction('insert','admins',json.id,`اضافة مستخدم: ${name}`);
+  }
+  closeModal('userModal'); loadUsers();
+}
+
+async function deleteUser(id){
+  if(!confirm('هل انت متاكد من حذف هذا المستخدم؟')) return;
+  await logAction('delete','admins',id,'حذف مستخدم');
+  await sb.from('admins').delete().eq('id',id);
+  await fetch(`https://vjkqtcggjkxuskmavolc.supabase.co/auth/v1/admin/users/${id}`, {
+    method:'DELETE',
+    headers:{'apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqa3F0Y2dnamt4dXNrbWF2b2xjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTI3OTQ0MCwiZXhwIjoyMDk2ODU1NDQwfQ.G9wst1xhT2pldJwJxEniUQ8eFmAAP8EnIwS-VbdBxok','Authorization':'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqa3F0Y2dnamt4dXNrbWF2b2xjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTI3OTQ0MCwiZXhwIjoyMDk2ODU1NDQwfQ.G9wst1xhT2pldJwJxEniUQ8eFmAAP8EnIwS-VbdBxok'}
+  });
+  loadUsers();
+}
+
+// ===== CHANGE PASSWORD =====
+function openChangePassModal(){
+  clearForm(['cp-new','cp-confirm']);
+  openModal('changePassModal');
+}
+
+async function saveNewPassword(){
+  const np = document.getElementById('cp-new').value;
+  const cp = document.getElementById('cp-confirm').value;
+  if(!np||np.length<8){ alert('كلمة السر يجب أن تكون 8 أحرف على الأقل'); return; }
+  if(np!==cp){ alert('كلمتا السر غير متطابقتين'); return; }
+  const {error} = await sb.auth.updateUser({password:np});
+  if(error){ alert('خطأ: '+error.message); return; }
+  alert('تم تغيير كلمة السر بنجاح');
+  closeModal('changePassModal');
+}
+
+// ===== ADS =====
+async function loadAds(){
+  const {data} = await sb.from('ads').select('*').order('created_at',{ascending:false});
+  const total = data?.length||0;
+  const active = data?.filter(a=>a.is_active&&(!a.end_date||new Date(a.end_date)>=new Date())).length||0;
+  const totalViews = data?.reduce((s,a)=>s+(a.views||0),0)||0;
+  const totalClicks = data?.reduce((s,a)=>s+(a.clicks||0),0)||0;
+  document.getElementById('ads-stat-total').textContent = total;
+  document.getElementById('ads-stat-active').textContent = active;
+  document.getElementById('ads-stat-views').textContent = totalViews;
+  document.getElementById('ads-stat-clicks').textContent = totalClicks;
+  const tbody = document.getElementById('ads-list');
+  if(!data?.length){ tbody.innerHTML='<tr><td colspan="7"><div class="empty"><p>لا توجد اعلانات</p></div></td></tr>'; return; }
+  tbody.innerHTML = data.map(r=>{
+    const ctr = r.views>0 ? ((r.clicks/r.views)*100).toFixed(1)+'%' : '-';
+    const expired = r.end_date && new Date(r.end_date) < new Date();
+    return `<tr>
+      <td data-label="الاعلان" style="display:flex;align-items:center;gap:8px">${r.image_url?`<img class="thumb-sm" src="${r.image_url}">`:'<div class="thumb-sm"></div>'} <a href="#" onclick="viewAdDetail('${r.id}'); return false;" style="color:var(--green); text-decoration:none; font-weight:700;">${r.title}</a></td>
+      <td data-label="الرابط">${r.link_url?`<a href="${r.link_url}" target="_blank" style="color:var(--green);font-size:12px">رابط</a>`:'-'}</td>
+      <td data-label="الفترة">${r.start_date||'-'} — ${r.end_date||'-'}</td>
+      <td data-label="مشاهدات">${r.views||0}</td>
+      <td data-label="نقرات">${r.clicks||0} <small style="color:var(--muted)">(${ctr})</small></td>
+      <td data-label="الحالة">
+        <button onclick="toggleAdStatus('${r.id}',${r.is_active})" style="border:none;cursor:pointer;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;font-family:inherit;background:${expired?'#fee2e2':r.is_active?'#dcfce7':'#f3f4f6'};color:${expired?'#dc2626':r.is_active?'#15803d':'#6b7280'}">
+          ${expired?'منتهي':r.is_active?'✓ نشط':'✗ متوقف'}
+        </button>
+      </td>
+      <td data-label="تاريخ النشر">${fmtDate(r.created_at)}</td>
+      <td data-label="اجراءات"><div class="action-btns">
+        <button class="btn-edit" onclick="editAd('${r.id}')">تعديل</button>
+        <button class="btn-del" onclick="deleteRow('ads','${r.id}',loadAds)">حذف</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+async function toggleAdStatus(id, current){
+  await sbAdmin.from('ads').update({is_active: !current}).eq('id', id);
+  loadAds();
+}
+
+function openAdModal(){ editingId=null; document.getElementById('adModalTitle').textContent='اضافة اعلان'; clearForm(['ad-title','ad-image','ad-link','ad-start','ad-end','ad-description','ad-location']); resetPub('ad'); document.getElementById('ad-preview').style.display='none'; openModal('adModal'); }
+
+async function editAd(id){
+  const {data} = await sb.from('ads').select('*').eq('id',id).single();
+  editingId = id;
+  document.getElementById('adModalTitle').textContent='تعديل الاعلان';
+  document.getElementById('ad-title').value = data.title||'';
+  document.getElementById('ad-image').value = data.image_url||'';
+  document.getElementById('ad-description').value = data.description||'';
+  document.getElementById('ad-location').value = data.location||'';
+  document.getElementById('ad-link').value = data.link_url||'';
+  document.getElementById('ad-start').value = data.start_date||'';
+  document.getElementById('ad-end').value = data.end_date||'';
+  const prev = document.getElementById('ad-preview');
+  if(data.image_url){ prev.src=data.image_url; prev.style.display='block'; } else { prev.style.display='none'; }
+  const activeBtn = document.querySelector(`#ad-pub-picker .pub-opt[data-pub="${data.is_active?'now':'draft'}"]`);
+  if(activeBtn){ document.querySelectorAll('#ad-pub-picker .pub-opt').forEach(b=>b.classList.remove('active')); activeBtn.classList.add('active'); }
+  openModal('adModal');
+}
+
+async function saveAd(){
+  const title = document.getElementById('ad-title').value.trim();
+  if(!title){ alert('العنوان مطلوب'); return; }
+  const btn = document.querySelector('#ad-pub-picker .pub-opt.active');
+  const payload = {
+    title,
+    image_url: document.getElementById('ad-image').value||null,
+    description: document.getElementById('ad-description').value.trim()||null,
+    location: document.getElementById('ad-location').value.trim()||null,
+    link_url: document.getElementById('ad-link').value.trim()||null,
+    start_date: document.getElementById('ad-start').value||null,
+    end_date: document.getElementById('ad-end').value||null,
+    is_active: btn?.dataset.pub==='now'
+  };
+  if(editingId){
+    await sbAdmin.from('ads').update(payload).eq('id',editingId);
+    await logAction('update','ads',editingId,`تعديل اعلان: ${title}`);
+  } else {
+    const {data} = await sbAdmin.from('ads').insert(payload).select().single();
+    await logAction('insert','ads',data?.id,`اضافة اعلان: ${title}`);
+  }
+  closeModal('adModal'); loadAds();
+}
+
+// ===== CALENDAR =====
+async function loadCalendar(){
+  if(calView==='monthly') await renderMonthly();
+  else await renderWeekly();
+}
+
+async function renderMonthly(){
+  const year=calDate.getFullYear(), month=calDate.getMonth();
+  const firstDay=new Date(year,month,1);
+  const lastDay=new Date(year,month+1,0);
+  const {data:majalis} = await sb.from('majalis').select('*,hussaini_centers(name),khateebs(name)').lte('start_date',lastDay.toISOString().split('T')[0]).gte('start_date',firstDay.toISOString().split('T')[0]).eq('is_published',true);
+  const evMap={};
+  (majalis||[]).forEach(m=>{
+    if(!m.start_date) return;
+    let d=new Date(m.start_date+'T00:00:00');
+    const end=m.end_date?new Date(m.end_date+'T00:00:00'):new Date(d);
+    while(d<=end){
+      const key=d.toISOString().split('T')[0];
+      if(!evMap[key]) evMap[key]=[];
+      evMap[key].push(m);
+      d.setDate(d.getDate()+1);
+    }
+  });
+  const monthNames=['يناير','فبراير','مارس','ابريل','مايو','يونيو','يوليو','اغسطس','سبتمبر','اكتوبر','نوفمبر','ديسمبر'];
+  document.getElementById('cal-title').textContent=`${monthNames[month]} ${year}`;
+  const dayNames=['الأحد','الاثنين','الثلاثاء','الاربعاء','الخميس','الجمعة','السبت'];
+  let html=`<div class="cal-grid">${dayNames.map(d=>`<div class="cal-day-header">${d}</div>`).join('')}`;
+  const today=new Date().toISOString().split('T')[0];
+  const startDow=firstDay.getDay();
+  for(let i=0;i<startDow;i++) html+=`<div class="cal-day other-month"></div>`;
+  for(let day=1;day<=lastDay.getDate();day++){
+    const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const evs=evMap[dateStr]||[];
+    const isToday=dateStr===today;
+    const evsJson=JSON.stringify(evs).replace(/"/g,'&quot;');
+    html+=`<div class="cal-day${isToday?' today':''}" onclick="showDayPopup('${dateStr}',${evsJson})">
+      <div class="day-num">${day}</div>
+      <div class="day-events">
+        ${evs.slice(0,2).map(e=>`<div class="cal-event">${e.hussaini_centers?.name||e.name||'-'}</div>`).join('')}
+        ${evs.length>2?`<div style="font-size:10px;color:var(--muted)">+${evs.length-2} اخرى</div>`:''}
+      </div>
+    </div>`;
+  }
+  html+='</div>';
+  document.getElementById('cal-body').innerHTML=html;
+}
+
+async function renderWeekly(){
+  const d=new Date(calDate);
+  d.setDate(d.getDate()-d.getDay());
+  const weekStart=new Date(d);
+  const weekEnd=new Date(d); weekEnd.setDate(weekEnd.getDate()+6);
+  const {data:majalis} = await sb.from('majalis').select('*,hussaini_centers(name),khateebs(name)').lte('start_date',weekEnd.toISOString().split('T')[0]).gte('start_date',weekStart.toISOString().split('T')[0]).eq('is_published',true);
+  const evMap={};
+  (majalis||[]).forEach(m=>{
+    if(!m.start_date) return;
+    let dt=new Date(m.start_date+'T00:00:00');
+    const end=m.end_date?new Date(m.end_date+'T00:00:00'):new Date(dt);
+    while(dt<=end){
+      const key=dt.toISOString().split('T')[0];
+      if(!evMap[key]) evMap[key]=[];
+      evMap[key].push(m);
+      dt.setDate(dt.getDate()+1);
+    }
+  });
+  const dayNames=['الأحد','الاثنين','الثلاثاء','الاربعاء','الخميس','الجمعة','السبت'];
+  const today=new Date().toISOString().split('T')[0];
+  const fmt=dt=>dt.toLocaleDateString('ar-SA',{month:'short',day:'numeric'});
+  document.getElementById('cal-title').textContent=`${fmt(weekStart)} — ${fmt(weekEnd)}`;
+  let html='<div class="week-grid">';
+  for(let i=0;i<7;i++){
+    const day=new Date(weekStart); day.setDate(day.getDate()+i);
+    const dateStr=day.toISOString().split('T')[0];
+    const evs=evMap[dateStr]||[];
+    const isToday=dateStr===today;
+    html+=`<div class="week-col${isToday?' today':''}">
+      <div class="week-col-header" style="${isToday?'color:var(--green)':''}">${dayNames[i]}<br><small>${fmt(day)}</small></div>
+      ${evs.map(e=>`<div class="week-event">
+        <div style="font-weight:700;margin-bottom:2px">${e.hussaini_centers?.name||e.name||'-'}</div>
+        <div style="color:var(--muted)">${e.khateebs?.name||'-'}</div>
+        ${e.time_description?`<div style="font-size:11px;color:var(--soft)">${e.time_description}</div>`:''}
+      </div>`).join('')}
+    </div>`;
+  }
+  html+='</div>';
+  document.getElementById('cal-body').innerHTML=html;
+}
+
+function calPrev(){
+  if(calView==='monthly') calDate.setMonth(calDate.getMonth()-1);
+  else calDate.setDate(calDate.getDate()-7);
+  loadCalendar();
+}
+function calNext(){
+  if(calView==='monthly') calDate.setMonth(calDate.getMonth()+1);
+  else calDate.setDate(calDate.getDate()+7);
+  loadCalendar();
+}
+function switchCalView(view){
+  calView=view;
+  document.querySelectorAll('.cal-view-btn').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
+  loadCalendar();
+}
+function showDayPopup(dateStr, evs){
+  if(!evs||!evs.length) return;
+  const fmt=new Date(dateStr+'T00:00:00').toLocaleDateString('ar-SA',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  const content=evs.map(e=>`- ${e.hussaini_centers?.name||e.name||'-'} | ${e.khateebs?.name||'-'}${e.time_description?' | '+e.time_description:''}`).join('\n');
+  alert(`${fmt}\n\n${content}`);
+}
+
+// ===== ADVANCED SEARCH =====
+function initSearch(){
+  const khSel=document.getElementById('srch-khateeb');
+  khSel.innerHTML='<option value="">كل الخطباء</option>'+khateebs.map(k=>`<option value="${k.id}">${k.name}</option>`).join('');
+  const ctrSel=document.getElementById('srch-center');
+  ctrSel.innerHTML='<option value="">كل المآتم</option>'+centers.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+}
+
+async function runSearch(){
+  const khateebId=document.getElementById('srch-khateeb').value;
+  const centerId=document.getElementById('srch-center').value;
+  const topic=document.getElementById('srch-topic').value.trim();
+  const fromDate=document.getElementById('srch-from').value;
+  const toDate=document.getElementById('srch-to').value;
+  let q=sb.from('majalis').select('*,hussaini_centers(name,location),khateebs(name)');
+  if(khateebId) q=q.eq('khateeb_id',khateebId);
+  if(centerId) q=q.eq('center_id',centerId);
+  if(topic) q=q.ilike('name','%'+topic+'%');
+  if(fromDate) q=q.gte('start_date',fromDate);
+  if(toDate) q=q.lte('start_date',toDate);
+  q=q.order('start_date',{ascending:false}).limit(100);
+  const {data} = await q;
+  const tbody=document.getElementById('search-results');
+  if(!data?.length){ tbody.innerHTML='<tr><td colspan="6"><div class="empty"><p>لا توجد نتائج</p></div></td></tr>'; return; }
+  tbody.innerHTML=data.map(r=>`
+    <tr>
+      <td data-label="المأتم"><strong>${r.hussaini_centers?.name||r.name||'-'}</strong></td>
+      <td data-label="الخطيب">${r.khateebs?.name||'-'}</td>
+      <td data-label="الوقت">${r.time_description||'-'}</td>
+      <td data-label="المكان">${r.hussaini_centers?.location||'-'}</td>
+      <td data-label="البداية">${r.start_date||'-'}</td>
+      <td data-label="النهاية">${r.end_date||'-'}</td>
+    </tr>`).join('');
+}
+
+function clearSearch(){
+  clearForm(['srch-topic','srch-place','srch-from','srch-to']);
+  document.getElementById('srch-khateeb').value='';
+  document.getElementById('srch-center').value='';
+  document.getElementById('search-results').innerHTML='<tr><td colspan="6" class="loading">ادخل معايير البحث ثم اضغط بحث</td></tr>';
+}
+
+// ===== MAJALIS STATS =====
+async function loadMajalisStats(){
+  const [{data:majalis},{data:ctrs},{data:khs},{data:evs}] = await Promise.all([
+    sb.from('majalis').select('*,hussaini_centers(name),khateebs(name)'),
+    sb.from('hussaini_centers').select('id'),
+    sb.from('khateebs').select('id'),
+    sb.from('events').select('id',{count:'exact',head:true})
+  ]);
+  document.getElementById('mst-total').textContent = majalis?.length||0;
+  document.getElementById('mst-centers').textContent = ctrs?.length||0;
+  document.getElementById('mst-khateebs').textContent = khs?.length||0;
+  document.getElementById('mst-events').textContent = evs||0;
+
+  // اكثر الخطباء نشاطاً
+  const khCount={};
+  (majalis||[]).forEach(m=>{ const n=m.khateebs?.name||'غير محدد'; khCount[n]=(khCount[n]||0)+1; });
+  const khSorted=Object.entries(khCount).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const maxKh=khSorted[0]?.[1]||1;
+  document.getElementById('mst-khateebs-table').innerHTML=khSorted.length?khSorted.map(([name,count])=>`
+    <tr>
+      <td data-label="الخطيب"><strong>${name}</strong></td>
+      <td data-label="المجالس">${count}</td>
+      <td data-label="النسبة" style="min-width:100px"><div class="progress-bar"><div class="progress-fill" style="width:${(count/maxKh*100).toFixed(0)}%"></div></div></td>
+    </tr>`).join(''):'<tr><td colspan="3" class="loading">لا توجد بيانات</td></tr>';
+
+  // اكثر المآتم استضافة
+  const ctrCount={};
+  (majalis||[]).forEach(m=>{ const n=m.hussaini_centers?.name||m.name||'غير محدد'; ctrCount[n]=(ctrCount[n]||0)+1; });
+  const ctrSorted=Object.entries(ctrCount).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const maxCtr=ctrSorted[0]?.[1]||1;
+  document.getElementById('mst-centers-table').innerHTML=ctrSorted.length?ctrSorted.map(([name,count])=>`
+    <tr>
+      <td data-label="المأتم"><strong>${name}</strong></td>
+      <td data-label="المجالس">${count}</td>
+      <td data-label="النسبة" style="min-width:100px"><div class="progress-bar"><div class="progress-fill" style="width:${(count/maxCtr*100).toFixed(0)}%"></div></div></td>
+    </tr>`).join(''):'<tr><td colspan="3" class="loading">لا توجد بيانات</td></tr>';
+
+  // توزيع بالشهر
+  const monthCount={};
+  const monthNames=['يناير','فبراير','مارس','ابريل','مايو','يونيو','يوليو','اغسطس','سبتمبر','اكتوبر','نوفمبر','ديسمبر'];
+  (majalis||[]).forEach(m=>{ if(!m.start_date) return; const d=new Date(m.start_date+'T00:00:00'); const k=`${d.getFullYear()} - ${monthNames[d.getMonth()]}`; monthCount[k]=(monthCount[k]||0)+1; });
+  const monthSorted=Object.entries(monthCount).sort((a,b)=>b[1]-a[1]);
+  const maxMonth=monthSorted[0]?.[1]||1;
+  document.getElementById('mst-months-table').innerHTML=monthSorted.length?monthSorted.map(([month,count])=>`
+    <tr>
+      <td data-label="الشهر"><strong>${month}</strong></td>
+      <td data-label="المجالس">${count}</td>
+      <td data-label="النسبة" style="min-width:100px"><div class="progress-bar"><div class="progress-fill" style="width:${(count/maxMonth*100).toFixed(0)}%"></div></div></td>
+    </tr>`).join(''):'<tr><td colspan="3" class="loading">لا توجد بيانات</td></tr>';
+}
+
+// ===== AUDIT LOG =====
+async function loadAuditLog(filterAction='', filterTable=''){
+  let q=sb.from('audit_log').select('*').order('created_at',{ascending:false}).limit(200);
+  if(filterAction) q=q.eq('action',filterAction);
+  if(filterTable) q=q.eq('table_name',filterTable);
+  const {data, error} = await q;
+  const tbody=document.getElementById('audit-list');
+  if(error){
+    tbody.innerHTML='<tr><td colspan="5"><div class="empty"><p>جدول السجلات غير موجود بعد — نفّذ setup.sql في Supabase</p></div></td></tr>';
+    return;
+  }
+  if(!data?.length){ tbody.innerHTML='<tr><td colspan="5"><div class="empty"><p>لا توجد سجلات</p></div></td></tr>'; return; }
+  const actionMap={insert:'اضافة',update:'تعديل',delete:'حذف',publish:'نشر',unpublish:'الغاء نشر'};
+  const colorMap={insert:'background:#dcfce7;color:#15803d',update:'background:#dbeafe;color:#1d4ed8',delete:'background:#fee2e2;color:#dc2626',publish:'background:#f0fdf4;color:#16a34a',unpublish:'background:#f1f5f9;color:#6b7280'};
+  tbody.innerHTML=data.map(r=>`
+    <tr>
+      <td data-label="التاريخ">${fmtDate(r.created_at)}</td>
+      <td data-label="المستخدم">${r.user_name||'-'}</td>
+      <td data-label="العملية"><span class="badge" style="${colorMap[r.action]||'background:#f1f5f9;color:#374151'}">${actionMap[r.action]||r.action}</span></td>
+      <td data-label="الجدول">${r.table_name||'-'}</td>
+      <td data-label="الوصف" style="max-width:200px">${r.description||'-'}</td>
+    </tr>`).join('');
+}
+
+// ===== HELPERS =====
+async function togglePublish(table, field, id, current){
+  await sb.from(table).update({[field]: !current}).eq('id', id);
+  await logAction(current?'unpublish':'publish', table, id, `${current?'الغاء نشر':'نشر'} في ${table}`);
+  if(table==='news') loadNews();
+  if(table==='obituaries') loadObits();
+  if(table==='majalis') loadMajalis();
+  if(table==='events') loadEvents();
+  if(table==='services') loadServices();
+  if(table==='ads') loadAds();
+}
+
+async function deleteRow(table, id, reload){
+  if(!confirm('هل انت متاكد من الحذف؟')) return;
+  await sb.from(table).delete().eq('id', id);
+  await logAction('delete', table, id, `حذف من ${table}`);
+  reload();
+}
+
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+function clearForm(ids){ ids.forEach(id => { const el=document.getElementById(id); if(el) el.value=''; }); }
+function fmtDate(d){ if(!d) return '-'; return new Date(d).toLocaleDateString('ar-SA',{year:'numeric',month:'short',day:'numeric'}); }
+
+function badgeHtml(badge, isBreaking){
+  const b = badge || (isBreaking?'urgent':'');
+  const map = {urgent:'<span class="badge breaking">عاجل</span>',new:'<span class="badge" style="background:#dcfce7;color:#15803d">جديد</span>',important:'<span class="badge" style="background:#fef9c3;color:#a16207">هام</span>',exclusive:'<span class="badge" style="background:#ede9fe;color:#7c3aed">خاص</span>'};
+  return map[b]||'';
+}
+
+// إغلاق المودال بالضغط على الخلفية
+document.querySelectorAll('.modal-overlay').forEach(o => o.addEventListener('click', e => { if(e.target===o) o.classList.remove('open'); }));
+
+// دخول بالـ Enter
+document.getElementById('loginPassword').addEventListener('keydown', e => { if(e.key==='Enter') login(); });
+document.getElementById('loginEmail').addEventListener('keydown', e => { if(e.key==='Enter') login(); });
+
+// مراقبة تغيير الهاش للتنقل بين الصفحات
+window.addEventListener('hashchange', () => {
+  if (document.getElementById('app').style.display === 'block') {
+    const hash = window.location.hash.substring(1) || 'dashboard';
+    showPage(hash);
+  }
+});
+
+// ===== Ad Crop Logic =====
+let adCropOriginalFile = null;
+let adCropData = { x:0, y:0, w:0, h:0, scaleX:1, scaleY:1 };
+
+function openAdCrop(input) {
+  const file = input.files[0];
+  if (!file) return;
+  adCropOriginalFile = file;
+  const url = URL.createObjectURL(file);
+  const img = document.getElementById('adCropImg');
+  img.onload = () => {
+    // افتح الـ modal أولاً حتى يكون له عرض حقيقي
+    openModal('adCropModal');
+    // ثم احسب الأبعاد بعد frame واحد
+    requestAnimationFrame(() => {
+      const container = document.getElementById('adCropContainer');
+      const ratio = 9 / 2; // نسبة الإعلان الحقيقية في التطبيق (عرض:ارتفاع = 9:2)
+      const dispW = Math.min(560, container.offsetWidth || (window.innerWidth * 0.85));
+      const dispH = dispW * (img.naturalHeight / img.naturalWidth);
+      container.style.width = dispW + 'px';
+      container.style.height = dispH + 'px';
+      img.style.width = dispW + 'px';
+      img.style.height = dispH + 'px';
+      adCropData.scaleX = img.naturalWidth / dispW;
+      adCropData.scaleY = img.naturalHeight / dispH;
+      // مربع اقتصاص بعرض كامل ونسبة 9:2
+      let bw = dispW, bh = bw / ratio;
+      if (bh > dispH) { bh = dispH; bw = bh * ratio; }
+      adCropData.x = (dispW - bw) / 2;
+      adCropData.y = (dispH - bh) / 2;
+      adCropData.w = bw;
+      adCropData.h = bh;
+      updateCropBox();
+    });
+  };
+  img.src = url;
+  input.value = '';
+}
+
+function updateCropBox() {
+  const {x, y, w, h} = adCropData;
+  const box = document.getElementById('adCropBox');
+  box.style.left   = x + 'px';
+  box.style.top    = y + 'px';
+  box.style.width  = w + 'px';
+  box.style.height = h + 'px';
+  box.style.display = 'block';
+
+  const c = document.getElementById('adCropContainer');
+  const cH = c.offsetHeight;
+  const cW = c.offsetWidth;
+
+  const top    = document.getElementById('cropDimTop');
+  const bottom = document.getElementById('cropDimBottom');
+  const left   = document.getElementById('cropDimLeft');
+  const right  = document.getElementById('cropDimRight');
+
+  top.style.height    = y + 'px';
+  bottom.style.height = (cH - y - h) + 'px';
+  left.style.top      = y + 'px';
+  left.style.height   = h + 'px';
+  left.style.width    = x + 'px';
+  right.style.top     = y + 'px';
+  right.style.height  = h + 'px';
+  right.style.width   = (cW - x - w) + 'px';
+}
+
+// Drag to move crop box
+(function(){
+  let dragging = false, startX, startY, startBX, startBY;
+  document.addEventListener('DOMContentLoaded', () => {
+    const box = document.getElementById('adCropBox');
+    box.addEventListener('pointerdown', e => {
+      dragging = true; startX = e.clientX; startY = e.clientY;
+      startBX = adCropData.x; startBY = adCropData.y;
+      e.currentTarget.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+    box.addEventListener('pointermove', e => {
+      if (!dragging) return;
+      const container = document.getElementById('adCropContainer');
+      let nx = startBX + (e.clientX - startX);
+      let ny = startBY + (e.clientY - startY);
+      nx = Math.max(0, Math.min(nx, container.offsetWidth - adCropData.w));
+      ny = Math.max(0, Math.min(ny, container.offsetHeight - adCropData.h));
+      adCropData.x = nx; adCropData.y = ny;
+      updateCropBox();
+    });
+    box.addEventListener('pointerup', () => { dragging = false; });
+  });
+})();
+
+async function confirmAdCrop() {
+  const img = document.getElementById('adCropImg');
+  const canvas = document.createElement('canvas');
+  const outW = 1200, outH = Math.round(1200 / (9/2)); // 1200x267
+  canvas.width = outW; canvas.height = outH;
+  const sx = adCropData.x * adCropData.scaleX;
+  const sy = adCropData.y * adCropData.scaleY;
+  const sw = adCropData.w * adCropData.scaleX;
+  const sh = adCropData.h * adCropData.scaleY;
+  canvas.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, outW, outH);
+  canvas.toBlob(async (blob) => {
+    const file = new File([blob], 'ad.jpg', { type: 'image/jpeg' });
+    closeModal('adCropModal');
+    // رفع الصورة
+    const saveBtn = document.querySelector('#adModal .btn-save');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'جاري الرفع...'; saveBtn.style.opacity='0.6'; }
+    const path = `banners/${Date.now()}.jpg`;
+    const SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqa3F0Y2dnamt4dXNrbWF2b2xjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTI3OTQ0MCwiZXhwIjoyMDk2ODU1NDQwfQ.G9wst1xhT2pldJwJxEniUQ8eFmAAP8EnIwS-VbdBxok';
+    const res = await fetch(`${SUPABASE_URL}/storage/v1/object/news-images/${path}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${SERVICE_KEY}`, 'Content-Type': 'image/jpeg', 'x-upsert': 'true' },
+      body: file
+    });
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'حفظ'; saveBtn.style.opacity='1'; }
+    if (res.ok) {
+      const url = `${SUPABASE_URL}/storage/v1/object/public/news-images/${path}`;
+      document.getElementById('ad-image').value = url;
+      const preview = document.getElementById('ad-preview');
+      preview.src = url; preview.style.display = 'block';
+    } else {
+      alert('خطأ في رفع الصورة');
+    }
+  }, 'image/jpeg', 0.88);
+}
+</script>
+</body>
+</html>
